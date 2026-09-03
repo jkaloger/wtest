@@ -1,12 +1,10 @@
 # Test Harness Spec: Vitest + Browser Mode + Playwright
 
-Portable spec. This repo is the proving ground (toy Next.js app + full harness). Copy this file into other repos to replicate. Fill the parameters table first; every `> ADAPT:` callout marks where a parameter changes mechanics, not just names.
-
-Decision record: `.hydra/spec-precision.json`.
+Portable spec. Copy this file into the adopting repo as `SPEC.md`. Fill the parameters table first; every `> ADAPT:` callout marks where a parameter changes mechanics, not just names. The defaults below describe a pnpm monorepo with one Next.js App Router app; they are a worked example, not a requirement.
 
 ## Parameters
 
-| Param              | Default here                        | Notes                                                       |
+| Param              | Default                             | Notes                                                       |
 | ------------------ | ----------------------------------- | ----------------------------------------------------------- |
 | `FRAMEWORK`        | `next` (App Router)                 | `astro` variant is documented but unproven                  |
 | `WORKSPACE`        | `monorepo` (pnpm workspaces)        | `single` = flatten packages into `src/mocks/` + `test/`     |
@@ -40,7 +38,7 @@ Three-layer harness for agent-driven iteration. Sub-second verify loop for logic
 
 ## Version floors
 
-Minimum majors = latest stable as of Sep 2026. Config below is written against these APIs. `VERIFY` = confirm against npm/nixpkgs when adopting; sandbox blocks the lookup. Resolved pins for this repo: `VERSIONS.md`.
+Minimum majors = latest stable as of Sep 2026. Config below is written against these APIs. `VERIFY` = confirm against npm/nixpkgs when adopting; sandbox blocks the lookup. Record resolved pins in a `VERSIONS.md` beside this spec.
 
 | Package                           | Floor                                           | Why it matters                                                |
 | --------------------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
