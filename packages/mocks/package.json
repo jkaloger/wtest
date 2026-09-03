@@ -1,0 +1,33 @@
+{
+  "name": "@repo/mocks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/handlers/index.ts",
+    "./node": "./src/node.ts",
+    "./browser": "./src/browser.ts",
+    "./server": "./src/server.ts",
+    "./auth": "./src/auth/index.ts",
+    "./supabase": "./src/handlers/supabase/index.ts"
+  },
+  "bin": {
+    "mocks-server": "./bin/mocks-server.mjs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "start": "node ./bin/mocks-server.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mswjs/http-middleware": "^0.10.3",
+    "@repo/types": "workspace:*",
+    "express": "^5.1.0",
+    "msw": "^2.15.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "vitest": "^4.1.11"
+  }
+}

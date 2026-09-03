@@ -1,0 +1,26 @@
+{
+  "name": "@repo/test-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./vitest": "./src/vitest.ts",
+    "./playwright": "./src/playwright.ts",
+    "./setup/unit": "./src/setup/unit.ts",
+    "./setup/browser": "./src/setup/browser.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@playwright/test": "1.61.1",
+    "@repo/mocks": "workspace:*",
+    "@vitest/browser-playwright": "^4.1.11",
+    "playwright": "1.61.1",
+    "vitest": "^4.1.11",
+    "vitest-browser-react": "^2.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  }
+}
