@@ -7,7 +7,8 @@
     "./vitest": "./src/vitest.ts",
     "./playwright": "./src/playwright.ts",
     "./setup/unit": "./src/setup/unit.ts",
-    "./setup/browser": "./src/setup/browser.ts"
+    "./setup/browser": "./src/setup/browser.ts",
+    "./reporter": "./src/reporter.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -1,13 +1,9 @@
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { server } from "../../node.ts";
 import { fixtures, scenario } from "./index.ts";
 import { anonSession, cookieName, userSession } from "../../auth/index.ts";
 
 const BASE = "http://127.0.0.1:4010";
-
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 describe("rest/v1/profiles", () => {
   test("returns fixture rows", async () => {

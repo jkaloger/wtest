@@ -31,7 +31,7 @@ fmt:
     @if command -v oxfmt >/dev/null; then oxfmt .; else prettier --write .; fi
 
 typecheck:
-    pnpm -r exec tsc --noEmit
+    pnpm -r --include-workspace-root exec tsc --noEmit
 
 # ---------------------------------------------------------------------------
 # tests
@@ -41,13 +41,15 @@ typecheck:
 test:
     @echo "not implemented until phase 10" && exit 1
 
-# Layer 1 full.
+# Layer 1 full. Fails on zero tests.
 test-unit:
-    @echo "not implemented until phase 5" && exit 1
+    rm -f {{results}}/unit.json
+    pnpm exec vitest run --project unit --reporter=default --reporter=@repo/test-config/reporter --outputFile={{results}}/unit.json
 
-# Layer 2 full.
+# Layer 2 full. Fails on zero tests.
 test-browser:
-    @echo "not implemented until phase 6" && exit 1
+    rm -rf {{results}}/browser.json {{results}}/browser
+    pnpm exec vitest run --project browser --reporter=default --reporter=@repo/test-config/reporter --outputFile={{results}}/browser.json
 
 # Layer 3. Requires `just server` already up.
 test-e2e:

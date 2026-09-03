@@ -1,5 +1,6 @@
 import { defineConfig, test as base, type PlaywrightTestConfig } from "@playwright/test";
 import { authUser, userSession, type AuthUser } from "@repo/mocks/auth";
+import { chromiumArgs } from "./chromium.ts";
 import { reports, RESULTS_DIR } from "./vitest.ts";
 
 export { expect } from "@playwright/test";
@@ -32,6 +33,7 @@ export function playwrightConfig({
       trace: "retain-on-failure",
       screenshot: "only-on-failure",
       video: "off",
+      launchOptions: { args: chromiumArgs() },
     },
     projects: [{ name: "chromium", use: { browserName: "chromium" } }],
   });

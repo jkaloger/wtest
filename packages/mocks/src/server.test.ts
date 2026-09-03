@@ -1,11 +1,14 @@
 import { afterAll, beforeAll, beforeEach, expect, test } from "vitest";
 import { fixtures } from "./handlers/supabase/index.ts";
+import { server as msw } from "./node.ts";
 import { startMockServer } from "./server.ts";
 
 let url: string;
 let close: () => Promise<void>;
 
+// Real sockets here: the express server is the subject, so in-process msw interception must be off.
 beforeAll(async () => {
+  msw.close();
   ({ url, close } = await startMockServer(0));
 });
 afterAll(() => close());

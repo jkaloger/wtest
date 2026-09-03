@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "typescript": "^5.9.0"
+    "@repo/test-config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=22"
