@@ -1,0 +1,53 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `just test` computes merge-base against origin/main.
+          fetch-depth: 0
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      # Network phase: toolchain, chromium from nixpkgs, npm packages. Everything after this runs
+      # in a namespace with only loopback.
+      - name: Install toolchain and dependencies
+        env:
+          CI: "true"
+        run: |
+          nix develop -c node --version
+          nix develop -c pnpm install --frozen-lockfile
+
+      # Ubuntu 24.04 restricts unprivileged user namespaces by default.
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # AC1: the whole harness passes with zero egress. `ip link set lo up` is the only network.
+      - name: just test-all (offline)
+        run: unshare -Urn -- sh -c 'ip link set lo up && nix develop -c just test-all'
+
+      - name: Stop supervisor
+        if: always()
+        run: nix develop -c just server-down || true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: |
+            test-results/
+            .process-compose.log
+          if-no-files-found: ignore
