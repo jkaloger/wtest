@@ -38,7 +38,12 @@ export function playwrightConfig({
     testDir,
     testMatch: "**/*.spec.ts",
     outputDir: resolve(resultsRoot, RESULTS_DIR, "e2e"),
-    reporter: [["line"], ["json", { outputFile: resolve(resultsRoot, reports.e2e) }]],
+    reporter: [
+      ["line"],
+      ["json", { outputFile: resolve(resultsRoot, reports.e2e) }],
+      // Beside outputDir, not inside it: Playwright wipes outputDir per run.
+      ["html", { outputFolder: resolve(resultsRoot, RESULTS_DIR, "e2e-report"), open: "never" }],
+    ],
     fullyParallel: false,
     workers: 1,
     maxFailures: 3,
@@ -47,7 +52,7 @@ export function playwrightConfig({
     use: {
       baseURL,
       trace: "retain-on-failure",
-      screenshot: "only-on-failure",
+      screenshot: process.env.SCREENSHOTS === "all" ? "on" : "only-on-failure",
       video: "off",
       launchOptions: { args: chromiumArgs() },
     },

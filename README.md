@@ -19,23 +19,27 @@ pnpm install
 
 Everything else goes through `just`. Agents run recipes as `direnv exec . just <recipe>`.
 
-| Recipe                 | What it does                                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------------------ |
-| `just check`           | oxlint, oxfmt `--check`, `tsc --noEmit` everywhere, enforcement scripts (AC5, AC6, AC8)          |
-| `just test`            | layers 1+2 for files changed since `origin/main` merge-base (or since HEAD without an upstream)  |
-| `just test-unit`       | layer 1, all of `apps/*` and `packages/*`                                                        |
-| `just test-browser`    | layer 2, real Chromium via Playwright, MSW service worker                                        |
-| `just server -D`       | detached supervisor: mock server → `next build` → `next start`; stops itself after `PC_TTL`s     |
-| `just http <url>`      | loopback probe via curl inside a recipe (agent shells deny bare `curl`)                          |
-| `just install`         | `CI=true pnpm install --frozen-lockfile`; `just install-update` after manifest edits             |
-| `just test-e2e`        | layer 3 against the running supervisor; exits non-zero within 5s when it is down                 |
-| `just test-all`        | wipe `test-results/`, `check`, unit, browser, rebuild + restart supervisor, e2e, print durations |
-| `just server-down`     | stop a detached supervisor                                                                       |
-| `scripts/verify-ac.sh` | runs SPEC.md AC2–AC9 as executable checks and prints a table (AC1 is the CI job)                 |
+| Recipe                 | What it does                                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `just check`           | oxlint, oxfmt `--check`, `tsc --noEmit` everywhere, enforcement scripts (AC5, AC6, AC8)                                                       |
+| `just test`            | layers 1+2 for files changed since `origin/main` merge-base (or since HEAD without an upstream)                                               |
+| `just test-unit`       | layer 1, all of `apps/*` and `packages/*`                                                                                                     |
+| `just test-browser`    | layer 2, real Chromium via Playwright, MSW service worker                                                                                     |
+| `just server -D`       | detached supervisor: mock server → `next build` → `next start`; stops itself after `PC_TTL`s                                                  |
+| `just http <url>`      | loopback probe via curl inside a recipe (agent shells deny bare `curl`)                                                                       |
+| `just install`         | `CI=true pnpm install --frozen-lockfile`; `just install-update` after manifest edits                                                          |
+| `just test-e2e`        | layer 3 against the running supervisor; exits non-zero within 5s when it is down                                                              |
+| `just test-all`        | wipe `test-results/`, `check`, unit, browser, rebuild + restart supervisor, e2e, print durations, write gallery; `SCREENSHOTS=all` by default |
+| `just report`          | rebuild `test-results/index.html` from the JSON reports and open it                                                                           |
+| `just server-down`     | stop a detached supervisor                                                                                                                    |
+| `scripts/verify-ac.sh` | runs SPEC.md AC2–AC12 as executable checks and prints a table (AC1 is the CI job)                                                             |
 
 Reports land in `test-results/` at the repo root: `unit.json`, `browser.json`, `e2e.json`, plus
-screenshots under `browser/` and Playwright artefacts under `e2e/`. Failure screenshots appear in
-`browser.json` as `screenshots[]` on the assertion result.
+screenshots under `browser/` and Playwright artefacts under `e2e/`. Screenshot paths appear in
+`browser.json` as `screenshots[]` on the assertion result and in `e2e.json` as `attachments[]`.
+Failures are always captured; `SCREENSHOTS=all` captures every test, which `test-all` does by
+default. `test-results/index.html` is the human view: every test with its screenshots inline,
+readable from a CI artifact zip. `e2e-report/` holds Playwright's HTML report with the trace viewer.
 
 The agent loop contract is `just check && just test` per iteration and `just test-all` before
 declaring a task done.

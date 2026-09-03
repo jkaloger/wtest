@@ -4,26 +4,26 @@ Portable spec. Copy this file into the adopting repo as `SPEC.md`. Fill the para
 
 ## Parameters
 
-| Param              | Default                             | Notes                                                       |
-| ------------------ | ----------------------------------- | ----------------------------------------------------------- |
-| `FRAMEWORK`        | `next` (App Router)                 | `astro` variant is documented but unproven                  |
-| `WORKSPACE`        | `monorepo` (pnpm workspaces)        | `single` = flatten packages into `src/mocks/` + `test/`     |
-| `PM`               | `pnpm`                              | Any PM; all commands go through `justfile`                  |
-| `SRC_DIR`          | `apps/web/src`                      |                                                             |
-| `APP_DIR`          | `apps/web/app`                      | Next routes. No test files here, ever                       |
-| `E2E_DIR`          | `apps/web/e2e`                      |                                                             |
-| `EXTERNAL_ORIGINS` | `supabase` (`/rest/v1`, `/auth/v1`) | One handler module + one client factory per origin          |
-| `AUTH_PROVIDER`    | `supabase-ssr`                      | See Auth fixtures                                           |
-| `TYPES_SOURCE`     | `@repo/types` (`packages/types`)    | Where backend row/DTO types live; fixtures import from here |
-| `BASE_BRANCH`      | `main`                              | Merge-base for `--changed`                                  |
-| `MOCK_PORT`        | `4010`                              | Loopback mock server                                        |
-| `APP_PORT`         | `3000`                              | `next start`                                                |
-| `PC_PORT`          | `8474`                              | process-compose control channel, TCP on loopback            |
-| `PC_TTL`           | `3600`                              | Seconds before a detached supervisor stops itself           |
-| `RESULTS_DIR`      | `test-results/` at the repo root    | Layer 1 spans `packages/*`, so reports live above `apps/`   |
-| `ENV_FILE`         | `test.env`                          | Loopback URLs + placeholder key. Not `.env.*`: see Sandbox  |
+| Param              | Default                             | Notes                                                            |
+| ------------------ | ----------------------------------- | ---------------------------------------------------------------- |
+| `FRAMEWORK`        | `next` (App Router)                 | `astro` variant is documented but unproven                       |
+| `WORKSPACE`        | `monorepo` (pnpm workspaces)        | `single` = flatten packages into `src/mocks/` + `test/`          |
+| `PM`               | `pnpm`                              | Any PM; all commands go through `justfile`                       |
+| `SRC_DIR`          | `apps/web/src`                      |                                                                  |
+| `APP_DIR`          | `apps/web/app`                      | Next routes. No test files here, ever                            |
+| `E2E_DIR`          | `apps/web/e2e`                      |                                                                  |
+| `EXTERNAL_ORIGINS` | `supabase` (`/rest/v1`, `/auth/v1`) | One handler module + one client factory per origin               |
+| `AUTH_PROVIDER`    | `supabase-ssr`                      | See Auth fixtures                                                |
+| `TYPES_SOURCE`     | `@repo/types` (`packages/types`)    | Where backend row/DTO types live; fixtures import from here      |
+| `BASE_BRANCH`      | `main`                              | Merge-base for `--changed`                                       |
+| `MOCK_PORT`        | `4010`                              | Loopback mock server                                             |
+| `APP_PORT`         | `3000`                              | `next start`                                                     |
+| `PC_PORT`          | `8474`                              | process-compose control channel, TCP on loopback                 |
+| `PC_TTL`           | `3600`                              | Seconds before a detached supervisor stops itself                |
+| `RESULTS_DIR`      | `test-results/` at the repo root    | Layer 1 spans `packages/*`, so reports live above `apps/`        |
+| `ENV_FILE`         | `test.env`                          | Loopback URLs + placeholder key. Not `.env.*`: see Sandbox       |
 | `SCREENSHOTS`      | `failures`                          | `all` = PNG per test in layers 2+3; `test-all` defaults to `all` |
-| `CI`               | `github-actions` (ubuntu, nix)      | Any Linux runner with nix + `unshare`                       |
+| `CI`               | `github-actions` (ubuntu, nix)      | Any Linux runner with nix + `unshare`                            |
 
 ## Objective
 
@@ -129,11 +129,10 @@ Rules:
       headless: true,
       screenshotFailures: true,
       screenshotDirectory: 'test-results/browser',
-      trace: { mode: 'retain-on-failure', tracesDir: 'test-results/browser/traces' },
     },
   }
   ```
-- Pass-case screenshots: `setup/browser.ts` registers an `afterEach` that, when `SCREENSHOTS=all`, calls `page.screenshot()` for every non-failed test (vitest already shoots failures) and records the returned path with `context.annotate(path, 'screenshot')`. Message-only annotation: an annotation carrying an attachment path is copied into `attachmentsDir`, which would duplicate every PNG. The factory injects `SCREENSHOTS` via `define` like the rest of the env. Default `page.screenshot()` path is `screenshotDirectory/<file>/<test>.png`, so pass and fail PNGs share one tree.
+- Pass-case screenshots: `setup/browser.ts` registers an `afterEach` that, when `SCREENSHOTS=all`, calls `page.screenshot({ path })` for every non-failed test (vitest already shoots failures). The path comes from `passScreenshotPath()` in `screenshots.ts`, shared with the reporter: `screenshotDirectory/<file>/<sanitised test name>.png`, beside vitest's own `<name>-1.png` failure files. No annotation: vitest rejects `context.annotate` from `afterEach` because the test has already passed, and an annotation with an attachment path would be copied into `attachmentsDir` anyway. The factory injects `SCREENSHOTS` and `SCREENSHOT_DIR` via `define` like the rest of the env; the browser's `server.config` exposes `root` but not the screenshot directory.
 - Render with `render()` / `renderHook()` from `vitest-browser-react`. Interact via `page`, `userEvent` from `vitest/browser` (Vitest 4 re-export; `@vitest/browser/context` is banned by lint to avoid a direct `@vitest/browser` dep). Real CDP input. Assert via `expect.element(locator)`; locators auto-retry, no manual waits.
 - Env: vitest does not forward `test.env` into the browser's `process.env` shim. The factory mirrors Next's inlining and injects every key via vite `define` (`process.env.KEY` → literal). Loopback test values only.
 - Vite 8 (vitest 4) transforms JSX with oxc, not esbuild: configure `oxc.jsx.runtime`, never `esbuild.jsx`.
@@ -185,25 +184,25 @@ Supabase example: handlers mock `/auth/v1/user` and `/auth/v1/token`. `/auth/v1/
 
 Recipe names use `-`, not `:`. `just` parses recipe names as identifiers, so `test:unit` is a syntax error.
 
-| Recipe           | Behaviour                                                                                                                        |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `test`           | layers 1+2, `--changed=$(git merge-base HEAD origin/$BASE_BRANCH)`; no upstream → `--changed`. `passWithNoTests: true` here only |
-| `test-unit`      | layer 1 full; fails on zero tests                                                                                                |
-| `test-browser`   | layer 2 full; fails on zero tests                                                                                                |
-| `test-e2e`       | layer 3; requires server up (`GET /__health` + app health), fails fast otherwise; stale `.next` accepted                         |
+| Recipe           | Behaviour                                                                                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test`           | layers 1+2, `--changed=$(git merge-base HEAD origin/$BASE_BRANCH)`; no upstream → `--changed`. `passWithNoTests: true` here only                           |
+| `test-unit`      | layer 1 full; fails on zero tests                                                                                                                          |
+| `test-browser`   | layer 2 full; fails on zero tests                                                                                                                          |
+| `test-e2e`       | layer 3; requires server up (`GET /__health` + app health), fails fast otherwise; stale `.next` accepted                                                   |
 | `test-all`       | wipe `RESULTS_DIR`, `check`, layers 1+2 full, rebuild + restart server, layer 3, print durations, write gallery; `SCREENSHOTS` defaults to `all` here only |
-| `report`         | regenerate `RESULTS_DIR/index.html` from whatever reports exist, then open it (`open` / `xdg-open`); human recipe               |
-| `server`         | `process-compose up`: mock-server → `next build` → `next start` (+ `watchdog`), readiness probes; `-D` detaches                  |
-| `server-restart` | `server-down`, `server -D`, `server-wait`; what `test-all` uses                                                                  |
-| `server-wait`    | block until both health checks pass or `next build` fails (default 180s)                                                         |
-| `server-down`    | stop a detached supervisor                                                                                                       |
-| `server-status`  | health checks, exit code, bounded to 5s                                                                                          |
-| `server-logs`    | `process-compose process logs <name>`                                                                                            |
-| `http`           | `curl -fsS --max-time 5 <url>`; agent shells may deny bare `curl`, recipes run it fine                                           |
-| `check`          | oxlint, oxfmt `--check` (or prettier), `tsc --noEmit` (tests included), enforcement scripts (see Lint rules)                     |
-| `fmt`            | oxfmt (or prettier) write                                                                                                        |
-| `install`        | `CI=true <pm> install --frozen-lockfile`; `install-update` drops `--frozen-lockfile` after manifest edits                        |
-| `gen-types`      | regenerate `TYPES_SOURCE`; human, network, outside sandbox                                                                       |
+| `report`         | regenerate `RESULTS_DIR/index.html` from whatever reports exist, then open it (`open` / `xdg-open`); human recipe                                          |
+| `server`         | `process-compose up`: mock-server → `next build` → `next start` (+ `watchdog`), readiness probes; `-D` detaches                                            |
+| `server-restart` | `server-down`, `server -D`, `server-wait`; what `test-all` uses                                                                                            |
+| `server-wait`    | block until both health checks pass or `next build` fails (default 180s)                                                                                   |
+| `server-down`    | stop a detached supervisor                                                                                                                                 |
+| `server-status`  | health checks, exit code, bounded to 5s                                                                                                                    |
+| `server-logs`    | `process-compose process logs <name>`                                                                                                                      |
+| `http`           | `curl -fsS --max-time 5 <url>`; agent shells may deny bare `curl`, recipes run it fine                                                                     |
+| `check`          | oxlint, oxfmt `--check` (or prettier), `tsc --noEmit` (tests included), enforcement scripts (see Lint rules)                                               |
+| `fmt`            | oxfmt (or prettier) write                                                                                                                                  |
+| `install`        | `CI=true <pm> install --frozen-lockfile`; `install-update` drops `--frozen-lockfile` after manifest edits                                                  |
+| `gen-types`      | regenerate `TYPES_SOURCE`; human, network, outside sandbox                                                                                                 |
 
 Agent loop contract: per iteration `just check && just test`. At task completion `just test-all`. Agents never run `gen-types`. Agents start the supervisor detached (`server -D` or `server-restart`) and stop it with `server-down`; the `watchdog` process stops it after `PC_TTL` seconds regardless, so a forgotten supervisor never outlives a session. `kill`/`pkill` are not part of the contract: agent shells commonly deny them.
 
@@ -225,8 +224,8 @@ Supervisor = `process-compose` from nixpkgs, declared in `process-compose.yaml`.
 ## Output contract for agents
 
 - `RESULTS_DIR/unit.json`, `RESULTS_DIR/browser.json` (vitest `--reporter=default --reporter=@repo/test-config/reporter --outputFile`), `RESULTS_DIR/e2e.json`. Wiped at the start of every `test*` recipe. The reporter subclasses vitest's `JsonReporter` because the stock one omits artefacts; it adds `screenshots[]` to each failed assertion.
-- Screenshots: `test-results/browser/<file>/<test>.png` (vitest scheme), `test-results/e2e/<spec>-<test>/…` (Playwright scheme). Paths appear in the JSON reports: `screenshots[]` per vitest assertion (failure artefacts plus `screenshot` annotations), `attachments[]` per Playwright result. Failures always; every test when `SCREENSHOTS=all`.
-- Traces: `test-results/browser/traces/*.trace.zip`, `test-results/e2e/<spec>-<test>/trace.zip`. Failures only. Open with `playwright show-trace <zip>` or the Playwright HTML report.
+- Screenshots: `test-results/browser/<file>/<test>.png` (vitest scheme), `test-results/e2e/<spec>-<test>/…` (Playwright scheme). Paths appear in the JSON reports: `screenshots[]` per vitest assertion (failure artefacts, or the derived pass path when it exists), `attachments[]` per Playwright result. Failures always; every test when `SCREENSHOTS=all`.
+- Traces: `test-results/e2e/<spec>-<test>/trace.zip`, failures only. Open with `playwright show-trace <zip>` or the Playwright HTML report. Layer 2 has no traces: vitest's `browser.trace` leaves Playwright's raw trace scratch files in `tracesDir` for passing tests too.
 - Exit codes are the sole pass/fail signal. No prompts, no watch mode in agent-invoked recipes.
 - Timing targets are soft, measured on CI from report durations and printed by `test-all`: unit full < 5s, `--changed` < 1s, browser cold < 10s, warm single file < 3s, e2e < 60s. No timing gate fails a run.
 

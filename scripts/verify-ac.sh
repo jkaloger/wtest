@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs SPEC.md acceptance criteria AC2-AC10 as executable checks and prints a table.
+# Runs SPEC.md acceptance criteria AC2-AC12 as executable checks and prints a table.
 # AC1 is the CI job (unshare + nix develop) and is reported as SKIP here.
 # Plants violations into the tree and reverts them; run on a clean checkout.
 set -uo pipefail
@@ -67,6 +67,30 @@ else
   fi
 fi
 
+# AC12: SCREENSHOTS=all gives every passed browser assertion a screenshot on disk; gallery renders them.
+if quiet env SCREENSHOTS=all just test-browser; then
+  missing=$(node -e '
+    const fs = require("node:fs");
+    const j = require("./test-results/browser.json");
+    const passed = j.testResults.flatMap(r => r.assertionResults.filter(a => a.status === "passed"));
+    const bad = passed.filter(a => !(a.screenshots ?? []).some(p => fs.existsSync(p)));
+    console.log(`${bad.length} ${passed.length}`);
+  ')
+  read -r bad passed <<< "$missing"
+  if [ "$bad" = "0" ] && [ "$passed" != "0" ] && quiet node scripts/gallery.mjs; then
+    imgs=$(grep -o '<img ' test-results/index.html | wc -l | tr -d ' ')
+    if [ "$imgs" -ge "$passed" ]; then
+      pass 12 "$passed passed tests, each with a PNG; gallery has $imgs <img>"
+    else
+      fail 12 "gallery has $imgs <img> for $passed passed tests"
+    fi
+  else
+    fail 12 "$bad of $passed passed assertions lack an existing screenshot"
+  fi
+else
+  fail 12 "SCREENSHOTS=all just test-browser failed"
+fi
+
 # AC5: check fails on cross-layer imports and on tests under app/.
 plant5=(apps/web/src/lib/profiles/ac5.test.ts apps/web/e2e/ac5.spec.ts apps/web/app/ac5.test.ts)
 printf 'import { test } from "@playwright/test";\ntest("x", () => {});\n' > "${plant5[0]}"
@@ -105,6 +129,28 @@ if quiet just server-status; then
   fi
 else
   fail 7 "server not up: run 'just server -D && just server-wait' first"
+fi
+
+# AC11: a failing e2e spec writes a PNG under test-results/e2e and e2e.json names it.
+if quiet just server-status; then
+  if quiet env DEMO_FAIL=1 just test-e2e; then
+    fail 11 "DEMO_FAIL=1 just test-e2e exited 0"
+  else
+    png=$(node -e '
+      const j = require("./test-results/e2e.json");
+      const paths = [];
+      const walk = s => { for (const sp of s.specs ?? []) for (const t of sp.tests) for (const r of t.results) for (const a of r.attachments ?? []) if (a.contentType === "image/png" && a.path) paths.push(a.path); for (const c of s.suites ?? []) walk(c); };
+      for (const s of j.suites ?? []) walk(s);
+      console.log(paths[0] ?? "");
+    ')
+    if [ -n "$png" ] && [ -f "$png" ] && [[ "$png" == *"/test-results/e2e/"* ]]; then
+      pass 11 "${png#"$PWD/"}"
+    else
+      fail 11 "no screenshot path in test-results/e2e.json (got '$png')"
+    fi
+  fi
+else
+  skip 11 "server not up"
 fi
 
 # AC8: playwright version pin vs nix driver.

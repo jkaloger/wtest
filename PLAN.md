@@ -199,13 +199,13 @@ Verify: `direnv exec . just check` green; with `CHROMIUM_SINGLE_PROCESS` unset i
 
 Human after phase 13: delete `filesystem.allowRead` from `.claude/settings.json`; optionally trust the proxy CA for `gh` (`SSL_CERT_FILE`) so the agent can `gh run watch` and close out phase 11's pending verification.
 
-### Phase 14 — Screenshots for review — TODO
+### Phase 14 — Screenshots for review — DONE
 
 Depends: 13. Source: session 2026-09-03. Goal: every test can leave a PNG, agents read paths from JSON, humans read one HTML page. Default behaviour unchanged for `just test`.
 
 - **`SCREENSHOTS` param.** `failures` (default) | `all`. `justfile`: `test-all` runs layers 2+3 with `SCREENSHOTS=${SCREENSHOTS:-all}`; no other recipe sets it.
-- **Layer 2 pass screenshots.** `setup/browser.ts`: `afterEach` → skip unless `SCREENSHOTS=all`, skip when `task.result.state === "fail"` (vitest shoots failures), else `const path = await page.screenshot()` and `context.annotate(path, "screenshot")`. `browserProject()` adds `process.env.SCREENSHOTS` to `define`. Add `browser.trace: { mode: "retain-on-failure", tracesDir: <resultsRoot>/test-results/browser/traces }`.
-- **Reporter.** `reporter.ts`: `screenshots[]` = failure artefacts ∪ `annotations()` with `type === "screenshot"` (message is the path). Applies to passed assertions too.
+- **Layer 2 pass screenshots.** `setup/browser.ts`: `afterEach` → skip unless `SCREENSHOTS=all`, skip when `task.result.state === "fail"` (vitest shoots failures), else `page.screenshot({ path })` with `path` from `screenshots.ts` `passScreenshotPath()` (`<screenshotDirectory>/<file>/<sanitised name>.png`). `browserProject()` adds `SCREENSHOTS` and `SCREENSHOT_DIR` to `define`. Tried and dropped: `context.annotate` (rejected from `afterEach`, test already passed) and `browser.trace` (raw trace scratch left for passing tests).
+- **Reporter.** `reporter.ts`: failed assertion → failure artefacts; passed assertion under `SCREENSHOTS=all` → `passScreenshotPath()` if the file exists.
 - **Layer 3.** `playwright.ts`: `screenshot: process.env.SCREENSHOTS === "all" ? "on" : "only-on-failure"`; add `["html", { outputFolder: <resultsRoot>/test-results/e2e-report, open: "never" }]` reporter. `test-e2e` recipe also wipes `e2e-report/`.
 - **e2e failure demo.** `apps/web/e2e/__demo__/fail.spec.ts`, `test.skip(process.env.DEMO_FAIL !== "1")`, asserts text that never renders. Mirrors the layer-2 demo.
 - **Gallery.** `scripts/gallery.mjs`: read `test-results/{unit,browser,e2e}.json` if present; write `test-results/index.html`. Summary table per layer (passed/total, duration). Then rows: layer, file, test, status, ms, `<img>` per screenshot (paths relative to `test-results/`), failure message in `<pre>`, trace link. Link to `e2e-report/index.html` when present. No deps, inline CSS, HTML-escape everything.

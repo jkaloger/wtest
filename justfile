@@ -8,6 +8,8 @@ export APP_PORT := env("APP_PORT", "3000")
 pc_port := env("PC_PORT", "8474")
 export PC_TTL := env("PC_TTL", "3600")
 results := "test-results"
+# test-all only; every other recipe leaves SCREENSHOTS to the tools' default of `failures`.
+screenshots_all := env("SCREENSHOTS", "all")
 
 _default:
     @just --list
@@ -69,7 +71,7 @@ test-browser:
 
 # Layer 3. Requires `just server` already up; fails fast otherwise.
 test-e2e: server-status
-    rm -rf {{results}}/e2e.json {{results}}/e2e
+    rm -rf {{results}}/e2e.json {{results}}/e2e {{results}}/e2e-report
     cd apps/web && pnpm exec playwright test
 
 # Everything, from a clean test-results/. Task-completion gate.
@@ -77,10 +79,16 @@ test-all:
     rm -rf {{results}}
     just check
     just test-unit
-    just test-browser
+    SCREENSHOTS={{screenshots_all}} just test-browser
     just server-restart
-    just test-e2e
+    SCREENSHOTS={{screenshots_all}} just test-e2e
     node scripts/report-durations.mjs
+    node scripts/gallery.mjs
+
+# Human recipe: rebuild the gallery from whatever reports exist and open it.
+report:
+    node scripts/gallery.mjs
+    if command -v open >/dev/null; then open {{results}}/index.html; else xdg-open {{results}}/index.html; fi
 
 # ---------------------------------------------------------------------------
 # server supervisor

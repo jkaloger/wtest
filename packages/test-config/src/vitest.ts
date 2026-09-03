@@ -51,11 +51,16 @@ export function browserProject({
   include = [BROWSER_TESTS],
   env = {},
 }: ProjectOptions): TestProjectInlineConfiguration {
+  const screenshotDirectory = resolve(resultsRoot, RESULTS_DIR, "browser");
   return {
     extends: true,
     // Next inlines NEXT_PUBLIC_* at build time; mirror that (for every key: loopback test values only)
     // because vitest does not forward `test.env` into the browser's process.env shim.
-    define: envDefine(env),
+    define: envDefine({
+      ...env,
+      SCREENSHOTS: process.env.SCREENSHOTS ?? "failures",
+      SCREENSHOT_DIR: screenshotDirectory,
+    }),
     optimizeDeps: { include: ["react/jsx-dev-runtime"] },
     test: {
       name: "browser",
@@ -72,7 +77,7 @@ export function browserProject({
         headless: true,
         screenshotFailures: true,
         // Absolute: vitest resolves a relative value against each test file's directory.
-        screenshotDirectory: resolve(resultsRoot, RESULTS_DIR, "browser"),
+        screenshotDirectory,
       },
     },
   };
