@@ -1,5 +1,5 @@
 import { http, HttpResponse, type HttpHandler } from "msw";
-import { AUTH_TOKEN, AUTH_USER } from "../handlers/supabase/handlers.ts";
+import { AUTH_TOKEN, AUTH_USER, unauthorized } from "../handlers/supabase/handlers.ts";
 import { authUser, type AuthUser } from "../handlers/supabase/fixtures.ts";
 import { base64url, session } from "./session.ts";
 
@@ -53,6 +53,7 @@ export function userSession(user: AuthUser = authUser()): AuthFixture {
   const current = session(user);
   return {
     handlers: [
+      // Layers 1-2 send the anon key, not a session token, so the user is forced here.
       http.get(AUTH_USER, () => HttpResponse.json(user)),
       http.post(AUTH_TOKEN, ({ request }) => {
         const grant = new URL(request.url).searchParams.get("grant_type");

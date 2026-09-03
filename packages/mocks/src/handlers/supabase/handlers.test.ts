@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { server } from "../../node.ts";
 import { fixtures, scenario } from "./index.ts";
 import { anonSession, cookieName, userSession } from "../../auth/index.ts";
+import { session } from "../../auth/session.ts";
 
 const BASE = "http://127.0.0.1:4010";
 
@@ -85,8 +86,38 @@ describe("auth", () => {
     expect(await res.json()).toMatchObject({ error_code: "invalid_credentials" });
   });
 
-  test("anon by default: /auth/v1/user is 401", async () => {
+  test("anon by default: /auth/v1/user is 401 without a session bearer", async () => {
     expect((await fetch(`${BASE}/auth/v1/user`)).status).toBe(401);
+    const anonKey = await fetch(`${BASE}/auth/v1/user`, {
+      headers: { authorization: "Bearer test-anon-key" },
+    });
+    expect(anonKey.status).toBe(401);
+  });
+
+  test("a bearer token issued by the mock identifies its user", async () => {
+    const grant = await fetch(`${BASE}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: fixtures.authUser().email,
+        password: fixtures.FIXTURE_PASSWORD,
+      }),
+    });
+    const { access_token } = await grant.json();
+    const res = await fetch(`${BASE}/auth/v1/user`, {
+      headers: { authorization: `Bearer ${access_token}` },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(fixtures.authUser());
+  });
+
+  test("anonSession forces 401 even with a valid bearer", async () => {
+    server.use(...anonSession().handlers);
+    const { access_token } = session(fixtures.authUser());
+    const res = await fetch(`${BASE}/auth/v1/user`, {
+      headers: { authorization: `Bearer ${access_token}` },
+    });
+    expect(res.status).toBe(401);
   });
 
   test("userSession handlers make /auth/v1/user return the user", async () => {

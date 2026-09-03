@@ -1,4 +1,4 @@
-import type { AuthUser } from "../handlers/supabase/fixtures.ts";
+import { authUser, type AuthUser } from "../handlers/supabase/fixtures.ts";
 
 export type Session = {
   access_token: string;
@@ -45,4 +45,28 @@ export function base64url(input: string): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function userFromBearer(header: string | null): AuthUser | null {
+  const token = header?.replace(/^Bearer\s+/i, "");
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const payload = JSON.parse(fromBase64url(parts[1]!)) as { sub?: string; email?: string };
+    if (!payload.sub || !payload.email) return null;
+    return authUser({ id: payload.sub, email: payload.email });
+  } catch {
+    return null;
+  }
+}
+
+function fromBase64url(input: string): string {
+  const padded = input
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(Math.ceil(input.length / 4) * 4, "=");
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }

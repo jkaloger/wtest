@@ -12,8 +12,19 @@ export function createMockServer(base: HttpHandler[] = defaults): Express {
   let overrides: HttpHandler[] = [];
   const app = express();
 
-  app.use((_req, res, next) => {
+  app.use((req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      req.header("access-control-request-headers") ?? "*",
+    );
+    res.setHeader("Access-Control-Expose-Headers", "Content-Range");
+    if (req.method === "OPTIONS") {
+      res.status(204).end();
+      return;
+    }
     next();
   });
   app.use(express.json());

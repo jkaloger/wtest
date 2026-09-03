@@ -4,7 +4,7 @@ import { anonSession, userSession } from "../auth/index.ts";
 import type { AuthUser } from "./supabase/fixtures.ts";
 import * as supabaseScenarios from "./supabase/scenarios.ts";
 
-export const handlers: HttpHandler[] = [...supabaseHandlers, ...anonSession().handlers];
+export const handlers: HttpHandler[] = [...supabaseHandlers];
 
 type ScenarioFn = (...args: never[]) => HttpHandler[];
 

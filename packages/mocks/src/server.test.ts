@@ -62,3 +62,16 @@ test("unknown scenario is a 400", async () => {
 test("unmatched routes are 501, never passthrough", async () => {
   expect((await fetch(`${url}/rest/v1/nothing`)).status).toBe(501);
 });
+
+test("answers CORS preflight for the app's browser bundle", async () => {
+  const res = await fetch(`${url}/rest/v1/profiles`, {
+    method: "OPTIONS",
+    headers: {
+      origin: "http://127.0.0.1:3000",
+      "access-control-request-headers": "apikey,authorization",
+    },
+  });
+  expect(res.status).toBe(204);
+  expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  expect(res.headers.get("access-control-allow-headers")).toBe("apikey,authorization");
+});

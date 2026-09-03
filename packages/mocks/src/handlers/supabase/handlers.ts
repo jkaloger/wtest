@@ -1,7 +1,7 @@
 import { http, HttpResponse, type HttpHandler } from "msw";
 import type { TablesInsert } from "@repo/types/supabase";
 import { authUser, FIXTURE_PASSWORD, profile, profiles, type Profile } from "./fixtures.ts";
-import { session } from "../../auth/session.ts";
+import { session, userFromBearer } from "../../auth/session.ts";
 import {
   applyFilters,
   PGRST_SINGLE_MISMATCH,
@@ -40,6 +40,13 @@ export const restHandlers: HttpHandler[] = [
 type PasswordGrant = { email?: string; password?: string };
 
 export const authHandlers: HttpHandler[] = [
+  // Stateless: a bearer token this mock issued identifies the user; anything else is anonymous.
+  http.get(AUTH_USER, ({ request }) => {
+    const user = userFromBearer(request.headers.get("authorization"));
+    if (!user) return unauthorized();
+    return HttpResponse.json(user);
+  }),
+
   http.post(AUTH_TOKEN, async ({ request }) => {
     const grant = new URL(request.url).searchParams.get("grant_type");
     if (grant !== "password") {
@@ -67,3 +74,10 @@ export const authHandlers: HttpHandler[] = [
 ];
 
 export const handlers: HttpHandler[] = [...restHandlers, ...authHandlers];
+
+export function unauthorized() {
+  return HttpResponse.json(
+    { code: 401, error_code: "no_authorization", msg: "This endpoint requires a Bearer token" },
+    { status: 401 },
+  );
+}

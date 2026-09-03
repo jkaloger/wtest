@@ -33,7 +33,7 @@ fmt:
     @if command -v oxfmt >/dev/null; then oxfmt .; else prettier --write .; fi
 
 typecheck:
-    pnpm -r --include-workspace-root exec tsc --noEmit
+    pnpm -r --include-workspace-root run typecheck
 
 # ---------------------------------------------------------------------------
 # tests
@@ -55,7 +55,8 @@ test-browser:
 
 # Layer 3. Requires `just server` already up; fails fast otherwise.
 test-e2e: server-status
-    @echo "not implemented until phase 8" && exit 1
+    rm -rf {{results}}/e2e.json {{results}}/e2e
+    cd apps/web && pnpm exec playwright test
 
 # Everything, from a clean test-results/. Task-completion gate.
 test-all:

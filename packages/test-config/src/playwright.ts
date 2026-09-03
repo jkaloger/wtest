@@ -1,6 +1,12 @@
-import { defineConfig, test as base, type PlaywrightTestConfig } from "@playwright/test";
+import { resolve } from "node:path";
+import {
+  defineConfig,
+  test as base,
+  type BrowserContext,
+  type PlaywrightTestConfig,
+} from "@playwright/test";
 import { authUser, userSession, type AuthUser } from "@repo/mocks/auth";
-import { chromiumArgs } from "./chromium.ts";
+import { chromiumArgs, singleProcess } from "./chromium.ts";
 import { reports, RESULTS_DIR } from "./vitest.ts";
 
 export { expect } from "@playwright/test";
@@ -10,19 +16,22 @@ export const MOCK_URL = process.env.MOCK_URL ?? `http://127.0.0.1:${process.env.
 
 export type PlaywrightOptions = {
   testDir: string;
+  /** Absolute path of the directory holding `test-results/`. Defaults to the config file's cwd. */
+  resultsRoot?: string;
   baseURL?: string;
 };
 
 // No webServer block on purpose: `just server` (process-compose) owns the app and mock server.
 export function playwrightConfig({
   testDir,
+  resultsRoot = process.cwd(),
   baseURL = APP_URL,
 }: PlaywrightOptions): PlaywrightTestConfig {
   return defineConfig({
     testDir,
     testMatch: "**/*.spec.ts",
-    outputDir: `${RESULTS_DIR}/e2e`,
-    reporter: [["line"], ["json", { outputFile: reports.e2e }]],
+    outputDir: resolve(resultsRoot, RESULTS_DIR, "e2e"),
+    reporter: [["line"], ["json", { outputFile: resolve(resultsRoot, reports.e2e) }]],
     fullyParallel: false,
     workers: 1,
     maxFailures: 3,
@@ -54,8 +63,9 @@ export async function applyScenario(
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ origin, name, args }),
   });
-  if (!res.ok)
+  if (!res.ok) {
     throw new Error(`__scenario ${origin}.${name} failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 export async function resetMocks(): Promise<void> {
@@ -68,7 +78,37 @@ type Fixtures = {
   authed: AuthUser;
 };
 
-export const test = base.extend<Fixtures>({
+type WorkerFixtures = {
+  // Single-process Chromium dies when a context closes, so one context serves the whole worker.
+  sharedContext: BrowserContext | null;
+};
+
+export const test = base.extend<Fixtures, WorkerFixtures>({
+  sharedContext: [
+    async ({ browser }, use) => {
+      if (!singleProcess()) {
+        await use(null);
+        return;
+      }
+      const context = await browser.newContext();
+      await use(context);
+      await context.close();
+    },
+    { scope: "worker" },
+  ],
+
+  context: async ({ browser, contextOptions, sharedContext }, use) => {
+    if (!sharedContext) {
+      const context = await browser.newContext(contextOptions);
+      await use(context);
+      await context.close();
+      return;
+    }
+    await sharedContext.clearCookies();
+    await use(sharedContext);
+    for (const page of sharedContext.pages()) await page.close();
+  },
+
   mock: [
     // Playwright requires the destructuring pattern even with no dependencies.
     // oxlint-disable-next-line no-empty-pattern
