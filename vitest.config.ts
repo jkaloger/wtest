@@ -4,7 +4,7 @@ import { browserProject, loadTestEnv, unitProject } from "@repo/test-config/vite
 
 const root = import.meta.dirname;
 const web = resolve(root, "apps/web");
-const env = loadTestEnv(root, { passthrough: ["DEMO_FAIL"] });
+const env = loadTestEnv(root, { passthrough: ["DEMO_FAIL", "DEMO_UNHANDLED"] });
 
 export default defineConfig({
   // Next wants `jsx: preserve` in tsconfig, which vite would otherwise inherit.

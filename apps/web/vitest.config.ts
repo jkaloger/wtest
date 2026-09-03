@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 import { browserProject, loadTestEnv, unitProject } from "@repo/test-config/vitest";
 
 const root = import.meta.dirname;
-const env = loadTestEnv(root, { passthrough: ["DEMO_FAIL"] });
+const env = loadTestEnv(root, { passthrough: ["DEMO_FAIL", "DEMO_UNHANDLED"] });
 
 export default defineConfig({
   oxc: { jsx: { runtime: "automatic" } },

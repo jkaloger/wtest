@@ -18,12 +18,6 @@ _default:
 # oxlint, format check, typecheck, plus the SPEC.md enforcement scripts (AC5, AC6, AC8).
 check: lint fmt-check typecheck enforce
 
-enforce:
-    scripts/check-vi-mock.sh
-    scripts/check-origins.sh
-    scripts/check-playwright-version.sh
-    scripts/check-test-placement.sh
-
 # oxlint exits 1 when it matches zero files, which is the state until phase 1.
 lint:
     @files=$(git ls-files -co --exclude-standard '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.cjs'); \
@@ -41,13 +35,25 @@ fmt:
 typecheck:
     pnpm -r --include-workspace-root run typecheck
 
+enforce:
+    scripts/check-vi-mock.sh
+    scripts/check-origins.sh
+    scripts/check-playwright-version.sh
+    scripts/check-test-placement.sh
+
 # ---------------------------------------------------------------------------
 # tests
 # ---------------------------------------------------------------------------
 
-# Layers 1+2, changed files only. Agent inner loop.
+# Layers 1+2, changed files only. Agent inner loop. The only recipe that passes with zero tests.
 test:
-    @echo "not implemented until phase 10" && exit 1
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -f {{results}}/unit.json {{results}}/browser.json
+    if base=$(git merge-base HEAD origin/{{base_branch}} 2>/dev/null); then changed="--changed=$base"; else changed="--changed"; fi
+    echo "vitest $changed"
+    pnpm exec vitest run --project unit "$changed" --passWithNoTests --reporter=default --reporter=@repo/test-config/reporter --outputFile={{results}}/unit.json
+    pnpm exec vitest run --project browser "$changed" --passWithNoTests --reporter=default --reporter=@repo/test-config/reporter --outputFile={{results}}/browser.json
 
 # Layer 1 full. Fails on zero tests.
 test-unit:
@@ -66,7 +72,13 @@ test-e2e: server-status
 
 # Everything, from a clean test-results/. Task-completion gate.
 test-all:
-    @echo "not implemented until phase 10" && exit 1
+    rm -rf {{results}}
+    just check
+    just test-unit
+    just test-browser
+    just server-restart
+    just test-e2e
+    node scripts/report-durations.mjs
 
 # ---------------------------------------------------------------------------
 # server supervisor
@@ -79,6 +91,28 @@ server *flags:
 
 server-down:
     process-compose down -p {{pc_port}}
+
+# Detached rebuild + restart, then block until both health checks pass (or 180s).
+server-restart:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just server-down >/dev/null 2>&1 || true
+    sleep 1
+    just server -D
+    just server-wait
+
+server-wait timeout="180":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for _ in $(seq 1 $(( {{timeout}} / 2 ))); do
+      if just server-status >/dev/null 2>&1; then just server-status; exit 0; fi
+      build=$(process-compose process get next-build -p {{pc_port}} 2>/dev/null | awk 'NR==2{print $4" "$8}')
+      if [ "$build" = "Completed 1" ]; then
+        echo "next build failed:"; process-compose process logs next-build -p {{pc_port}} | tail -40; exit 1
+      fi
+      sleep 2
+    done
+    echo "server did not become ready within {{timeout}}s"; exit 1
 
 server-logs process="next-build":
     process-compose process logs {{process}} -p {{pc_port}}
@@ -93,5 +127,8 @@ server-status:
 # setup phase (network, outside sandbox, humans only)
 # ---------------------------------------------------------------------------
 
+# Regenerate packages/types/src/supabase.ts from a real project. Needs SUPABASE_PROJECT_ID + network.
 gen-types:
-    @echo "not implemented until phase 1" && exit 1
+    @: "${SUPABASE_PROJECT_ID:?set SUPABASE_PROJECT_ID to the project ref}"
+    pnpm dlx supabase gen types typescript --project-id "$SUPABASE_PROJECT_ID" --schema public > packages/types/src/supabase.ts
+    just fmt

@@ -1,7 +1,7 @@
 // Vitest's JSON reporter omits artifacts. Agents read reports, not consoles, so failure
 // screenshots are copied onto each assertion result as `screenshots: string[]` (AC4).
 import type { TestCase, TestModule } from "vitest/node";
-import { JsonReporter } from "vitest/reporters";
+import { JsonReporter } from "vitest/node";
 
 type Assertion = { fullName: string; screenshots?: string[] };
 type Report = { testResults: { name: string; assertionResults: Assertion[] }[] };
