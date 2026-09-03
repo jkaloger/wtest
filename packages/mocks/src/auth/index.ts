@@ -31,20 +31,10 @@ export function cookieName(url: string = supabaseUrl()): string {
   return `sb-${new URL(url).hostname.split(".")[0]}-auth-token`;
 }
 
+// Forces anonymity even when a valid bearer token is presented (e.g. a stale cookie).
 export function anonSession(): AuthFixture {
   return {
-    handlers: [
-      http.get(AUTH_USER, () =>
-        HttpResponse.json(
-          {
-            code: 401,
-            error_code: "no_authorization",
-            msg: "This endpoint requires a Bearer token",
-          },
-          { status: 401 },
-        ),
-      ),
-    ],
+    handlers: [http.get(AUTH_USER, () => unauthorized())],
     cookies: [],
   };
 }
