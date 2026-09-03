@@ -166,28 +166,33 @@ Supabase example: handlers mock `/auth/v1/user` and `/auth/v1/token`; cookie is 
 
 ## Commands (justfile, PM-agnostic)
 
+Recipe names use `-`, not `:`. `just` parses recipe names as identifiers, so `test:unit` is a syntax error.
+
 | Recipe          | Behaviour                                                                                          |
 | --------------- | -------------------------------------------------------------------------------------------------- |
 | `test`          | layers 1+2, `--changed=$(git merge-base HEAD origin/$BASE_BRANCH)`; no upstream → `--changed`. `passWithNoTests: true` here only |
-| `test:unit`     | layer 1 full; fails on zero tests                                                                  |
-| `test:browser`  | layer 2 full; fails on zero tests                                                                  |
-| `test:e2e`      | layer 3; requires server up (`GET /__health` + app health), fails fast otherwise; stale `.next` accepted |
-| `test:all`      | wipe `test-results/`, `check`, layers 1+2 full, rebuild + restart server, layer 3                  |
+| `test-unit`     | layer 1 full; fails on zero tests                                                                  |
+| `test-browser`  | layer 2 full; fails on zero tests                                                                  |
+| `test-e2e`      | layer 3; requires server up (`GET /__health` + app health), fails fast otherwise; stale `.next` accepted |
+| `test-all`      | wipe `test-results/`, `check`, layers 1+2 full, rebuild + restart server, layer 3                  |
 | `server`        | `process-compose up`: mock-server → `next build` → `next start`, readiness probes, long-lived      |
 | `server-status` | health checks, exit code                                                                           |
 | `check`         | oxlint, oxfmt `--check` (or prettier), `tsc --noEmit` (tests included), playwright version match, origin-literal grep |
 | `fmt`           | oxfmt (or prettier) write                                                                          |
 | `gen-types`     | regenerate `TYPES_SOURCE`; human, network, outside sandbox                                         |
 
-Agent loop contract: per iteration `just check && just test`. At task completion `just test:all`. Agents never run `server` or `gen-types`; a human or orchestrator runs `just server` once per session.
+Agent loop contract: per iteration `just check && just test`. At task completion `just test-all`. Agents never run `server` or `gen-types`; a human or orchestrator runs `just server` once per session.
 
 Supervisor = `process-compose` from nixpkgs, declared in `process-compose.yaml`. No daemon, no custom code.
 
 ## Sandbox / offline
 
-- Loop passes with zero egress. CI job: `unshare -Urn -- sh -c 'ip link set lo up && nix develop -c just test:all'`; fallback `--network=none` container.
+- Loop passes with zero egress. CI job: `unshare -Urn -- sh -c 'ip link set lo up && nix develop -c just test-all'`; fallback `--network=none` container.
 - macOS has no network namespace. Locally rely on `onUnhandledRequest: 'error'` plus the agent sandbox.
-- Setup phase, outside sandbox: `pnpm install --frozen-lockfile`, `just gen-types`. Browsers come from nix, never `playwright install`.
+- Setup phase, outside sandbox: `pnpm install --frozen-lockfile`, `just gen-types`, `direnv allow` + one directory entry to populate `.direnv/`. Browsers come from nix, never `playwright install`.
+- Agents run recipes as `direnv exec . just <recipe>`, never `nix develop`. nix-direnv caches the devShell to `.direnv/flake-profile-<hash>.rc`; on a cache hit nothing invokes nix, so the agent sandbox can keep the nix daemon socket and nix cache writes denied. A stale cache fails loudly instead of running the wrong toolchain. The direnv shell hook is `precmd`-only and never fires in an agent's non-interactive shell, hence the explicit `exec`.
+- Package manager must not self-manage its own version: nix pins it, so disable the `packageManager`-field fetch (`manage-package-manager-versions=false` for pnpm). Otherwise every recipe attempts egress before it runs.
+- Agent sandbox must permit exactly two things beyond repo writes: **bind and connect on `127.0.0.1`, any port** (mock server, app server, and the ephemeral ports vitest browser mode and Playwright CDP choose at runtime — a loopback listener is unreachable off-host, so this is not egress), and **read `.env.test`** (`just` uses `dotenv-load`; the file holds loopback URLs and a placeholder key). Real dotenv files and all external egress stay denied.
 - Flake: `playwright-driver.browsers` (chromium only), exports `PLAYWRIGHT_BROWSERS_PATH`, `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true`, `PLAYWRIGHT_VERSION=${playwright-driver.version}`, `NEXT_TELEMETRY_DISABLED=1`, `ASTRO_TELEMETRY_DISABLED=1`. `package.json` pins `playwright` and `@playwright/test` exactly to that version; `just check` fails on mismatch.
 - `next/font/google` fetches at build → use `next/font/local`.
 
@@ -196,7 +201,7 @@ Supervisor = `process-compose` from nixpkgs, declared in `process-compose.yaml`.
 - `test-results/unit.json`, `test-results/browser.json` (vitest `--reporter=default --reporter=json --outputFile`), `test-results/e2e.json`. Wiped at the start of every `test*` recipe.
 - Screenshots: `test-results/browser/<file>/<test>.png` (vitest scheme), `test-results/e2e/<spec>-<test>/…` (Playwright scheme). Paths appear in the JSON reports.
 - Exit codes are the sole pass/fail signal. No prompts, no watch mode in agent-invoked recipes.
-- Timing targets are soft, measured on CI from report durations and printed by `test:all`: unit full < 5s, `--changed` < 1s, browser cold < 10s, warm single file < 3s, e2e < 60s. No timing gate fails a run.
+- Timing targets are soft, measured on CI from report durations and printed by `test-all`: unit full < 5s, `--changed` < 1s, browser cold < 10s, warm single file < 3s, e2e < 60s. No timing gate fails a run.
 
 ## Lint rules (oxlint, run by `check`)
 
@@ -212,7 +217,7 @@ Supervisor = `process-compose` from nixpkgs, declared in `process-compose.yaml`.
 
 All mechanised. "Passes" = exit 0.
 
-1. Fresh clone, setup phase done, then `unshare -Urn -- nix develop -c just test:all` passes in CI.
+1. Fresh clone, setup phase done, then `unshare -Urn -- nix develop -c just test-all` passes in CI.
 2. A browser-mode test whose component queries an external origin passes with the happy-path handlers and fails with an unhandled-request error when that handler is removed.
 3. Editing one component file and running `just test` runs only test files whose import graph includes it. Soft: < 5s warm.
 4. A deliberately failing browser-mode test writes a PNG under `test-results/browser/` and its path appears in `test-results/browser.json`.
@@ -220,7 +225,7 @@ All mechanised. "Passes" = exit 0.
 6. `just check` fails if an `https?://` literal exists in `SRC_DIR` outside `lib/*/client.ts` and the allowlist.
 7. `next build` completes with the mock server up and no egress; e2e smoke tests pass against `next start` with all origin env vars set to `127.0.0.1`.
 8. `just check` fails if `playwright` in `node_modules` differs from `PLAYWRIGHT_VERSION`.
-9. `just test:e2e` exits non-zero within 5s when the server is not running.
+9. `just test-e2e` exits non-zero within 5s when the server is not running.
 
 ## Out of scope
 

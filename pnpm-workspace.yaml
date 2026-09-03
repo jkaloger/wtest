@@ -1,0 +1,9 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Exact, matching nixpkgs playwright-driver. Nothing transitive may float these: browsers come
+# from the nix store and a version skew breaks executable path resolution. Enforced by AC8.
+overrides:
+  playwright: "1.61.1"
+  "@playwright/test": "1.61.1"

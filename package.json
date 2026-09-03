@@ -1,0 +1,12 @@
+{
+  "name": "dom-test",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,1 +1,9 @@
 .hydra
+node_modules/
+.pnpm-store/
+.next/
+test-results/
+.direnv/
+result
+.process-compose.pid
+*.log
