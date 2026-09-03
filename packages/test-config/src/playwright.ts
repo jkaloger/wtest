@@ -1,0 +1,77 @@
+import { defineConfig, test as base, type PlaywrightTestConfig } from "@playwright/test";
+import { authUser, userSession, type AuthUser } from "@repo/mocks/auth";
+import { reports, RESULTS_DIR } from "./vitest.ts";
+
+export { expect } from "@playwright/test";
+
+export const APP_URL = process.env.APP_URL ?? "http://127.0.0.1:3000";
+export const MOCK_URL = process.env.MOCK_URL ?? `http://127.0.0.1:${process.env.MOCK_PORT ?? 4010}`;
+
+export type PlaywrightOptions = {
+  testDir: string;
+  baseURL?: string;
+};
+
+// No webServer block on purpose: `just server` (process-compose) owns the app and mock server.
+export function playwrightConfig({ testDir, baseURL = APP_URL }: PlaywrightOptions): PlaywrightTestConfig {
+  return defineConfig({
+    testDir,
+    testMatch: "**/*.spec.ts",
+    outputDir: `${RESULTS_DIR}/e2e`,
+    reporter: [["line"], ["json", { outputFile: reports.e2e }]],
+    fullyParallel: false,
+    workers: 1,
+    maxFailures: 3,
+    retries: 0,
+    timeout: 15_000,
+    use: {
+      baseURL,
+      trace: "retain-on-failure",
+      screenshot: "only-on-failure",
+      video: "off",
+    },
+    projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  });
+}
+
+export type Mock = {
+  scenario: (name: string, ...args: unknown[]) => Promise<void>;
+  reset: () => Promise<void>;
+};
+
+export async function applyScenario(name: string, args: unknown[] = [], origin = "supabase"): Promise<void> {
+  const res = await fetch(`${MOCK_URL}/__scenario`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ origin, name, args }),
+  });
+  if (!res.ok) throw new Error(`__scenario ${origin}.${name} failed: ${res.status} ${await res.text()}`);
+}
+
+export async function resetMocks(): Promise<void> {
+  const res = await fetch(`${MOCK_URL}/__reset`, { method: "POST" });
+  if (!res.ok) throw new Error(`__reset failed: ${res.status}`);
+}
+
+type Fixtures = {
+  mock: Mock;
+  authed: AuthUser;
+};
+
+export const test = base.extend<Fixtures>({
+  mock: [
+    async ({}, use) => {
+      await resetMocks();
+      await use({ scenario: (name, ...args) => applyScenario(name, args), reset: resetMocks });
+    },
+    { auto: true },
+  ],
+
+  authed: async ({ context, baseURL, mock }, use) => {
+    const user = authUser();
+    await mock.scenario("auth.user", user);
+    const cookies = userSession(user).cookies.map(({ name, value }) => ({ name, value, url: baseURL ?? APP_URL }));
+    await context.addCookies(cookies);
+    await use(user);
+  },
+});
