@@ -8,3 +8,4 @@ result
 .process-compose.pid
 *.log
 *.tsbuildinfo
+.process-compose.log

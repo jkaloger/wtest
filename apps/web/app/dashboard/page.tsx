@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { ProfileCard } from "../../src/components/profile-card";
 import { ProfileSearch } from "../../src/components/profile-search";
 import { listProfiles } from "../../src/lib/profiles/queries";
-import { serverClient } from "../../src/lib/supabase/client";
+import { serverClient } from "../../src/lib/supabase/server";
 
 export default async function Dashboard() {
   const client = await serverClient();

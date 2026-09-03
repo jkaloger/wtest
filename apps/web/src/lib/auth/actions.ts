@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { serverClient } from "../supabase/client";
+import { serverClient } from "../supabase/server";
 import { parseCredentials, signInWithPassword } from "./sign-in";
 
 export async function signIn(formData: FormData): Promise<void> {

@@ -1,0 +1,45 @@
+# Layer 3 supervisor: mock-server -> next build -> next start. Long-lived; `just server`.
+# `just server` supplies MOCK_PORT (from the test dotenv file) and APP_PORT (justfile default 3000):
+# ${VAR} here expands from the caller's environment when the config loads.
+version: "0.5"
+log_location: .process-compose.log
+is_strict: true
+
+processes:
+  mock-server:
+    command: node packages/mocks/bin/mocks-server.mjs
+    readiness_probe:
+      http_get:
+        host: 127.0.0.1
+        port: ${MOCK_PORT}
+        path: /__health
+      initial_delay_seconds: 0
+      period_seconds: 1
+      failure_threshold: 30
+    availability:
+      restart: on_failure
+
+  # Static prerender fetches hit the mock server, so the build waits for it to be healthy.
+  next-build:
+    command: pnpm -F web exec next build
+    depends_on:
+      mock-server:
+        condition: process_healthy
+    availability:
+      restart: "no"
+
+  next-start:
+    command: pnpm -F web exec next start --hostname 127.0.0.1 --port ${APP_PORT}
+    depends_on:
+      next-build:
+        condition: process_completed_successfully
+    readiness_probe:
+      http_get:
+        host: 127.0.0.1
+        port: ${APP_PORT}
+        path: /
+      initial_delay_seconds: 1
+      period_seconds: 1
+      failure_threshold: 30
+    availability:
+      restart: on_failure
