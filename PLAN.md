@@ -15,27 +15,21 @@ Each phase = one agent iteration. Phase ends green on its own verify command bef
 
 ## Agent sandbox requirements
 
-The harness cannot run without these three. Phase 13 reduces them to the first. Everything else stays denied, including all external egress.
+One grant, honored from committed project settings (`.claude/settings.json`). Everything else stays denied, including all external egress.
 
-1. **Bind and connect on `127.0.0.1`, any port.** Mock server 4010, `next start` 3000, plus ephemeral ports vitest browser mode and Playwright CDP pick at runtime. A loopback listener is unreachable off-host, so this grants no egress.
-2. **Read `<repo>/.env.test`.** `just` uses `dotenv-load`. Contents are loopback URLs and the literal `test-anon-key`. Keep `.env`, `.env.local`, `secrets/` denied.
-
-3. **`CHROMIUM_SINGLE_PROCESS=1` in the agent environment (macOS only).** Discovered in phase 6: the macOS sandbox denies the Mach port registration Chromium needs to spawn helpers. See PROBLEMS.md and README.md.
-
-Grants 1 and 2 are honored from committed project settings — `.claude/settings.json`. Grant 3 is a pending human edit (`"env": { "CHROMIUM_SINGLE_PROCESS": "1" }`) that phase 13 makes unnecessary:
+1. **Bind and connect on `127.0.0.1`, any port.** Mock server 4010, `next start` 3000, process-compose control port 8474, plus ephemeral ports vitest browser mode and Playwright CDP pick at runtime. A loopback listener is unreachable off-host, so this grants no egress.
 
 ```json
 {
   "sandbox": {
-    "network": { "allowLocalBinding": true },
-    "filesystem": { "allowRead": [".env.test"] }
+    "network": { "allowLocalBinding": true }
   }
 }
 ```
 
-`allowRead` re-allows a single path inside a `denyRead` region and takes precedence over it, so a blanket `Read(./.env.*)` deny stays in force for every other dotenv file. Neither key can disable isolation wholesale: `network.strictAllowlist` and `filesystem.disabled` are ignored when set from project settings, by design.
+Phase 13 removed two earlier grants: `test.env` (formerly `.env.test`) no longer matches the `.env*` read-deny, and `@repo/test-config` auto-detects Claude Code on macOS (`CLAUDECODE=1`) to launch Chromium with `--single-process`. Neither sandbox key can disable isolation wholesale: `network.strictAllowlist` and `filesystem.disabled` are ignored when set from project settings, by design.
 
-Deliberately _not_ granted: nix daemon socket, `~/.cache/nix` and `~/.local/state/nix` writes, npm registry egress.
+Deliberately _not_ granted: nix daemon socket, `~/.cache/nix` and `~/.local/state/nix` writes, npm registry egress (the Claude Code proxy happens to admit it; nothing depends on that).
 
 ## Human setup tasks (outside sandbox)
 
@@ -53,12 +47,12 @@ Deliberately _not_ granted: nix daemon socket, `~/.cache/nix` and `~/.local/stat
 
 ### Phase 0 — Skeleton + toolchain — DONE
 
-Files: `flake.nix`, `flake.lock`, `pnpm-workspace.yaml`, root `package.json`, `tsconfig.base.json`, `tsconfig.json`, `justfile`, `.gitignore`, `.env.test`, `.envrc`, `VERSIONS.md`.
+Files: `flake.nix`, `flake.lock`, `pnpm-workspace.yaml`, root `package.json`, `tsconfig.base.json`, `tsconfig.json`, `justfile`, `.gitignore`, `test.env`, `.envrc`, `VERSIONS.md`.
 
 - Flake devShell: node LTS, pnpm, just, process-compose, oxlint, oxfmt (fallback prettier), `playwright-driver.browsers` chromium-only. Exports `PLAYWRIGHT_BROWSERS_PATH`, `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true`, `PLAYWRIGHT_VERSION`, `NEXT_TELEMETRY_DISABLED=1`, `ASTRO_TELEMETRY_DISABLED=1`.
 - Workspace: `apps/*`, `packages/*`.
 - justfile: all recipes from SPEC.md present; unimplemented ones `exit 1` with message.
-- `.env.test`: `MOCK_PORT=4010`, `SUPABASE_URL=http://127.0.0.1:4010`, `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:4010`, anon key placeholder.
+- `test.env` (was `.env.test` until phase 13): `MOCK_PORT=4010`, `SUPABASE_URL=http://127.0.0.1:4010`, `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:4010`, anon key placeholder.
 - Playwright pinned exact to `nixpkgs#playwright-driver.version` under `overrides:` in `pnpm-workspace.yaml`. pnpm 10 ignores a `pnpm.overrides` key in `package.json`.
 - `lint` and `fmt-check` skip when the tree has no source files: oxlint exits 1 on an empty match, and phase 0 has nothing to lint. The guard drops out naturally from phase 1.
 - `.npmrc` sets `manage-package-manager-versions=false`. The flake pins pnpm; without this the `packageManager` field makes pnpm fetch its own CLI on every invocation and every recipe dies on the sandbox's missing egress. Keep `packageManager` in sync with `nixpkgs#pnpm`.
@@ -134,7 +128,7 @@ Verify: `direnv exec . just test-browser` green; `DEMO_FAIL=1 direnv exec . just
 
 Depends: 4.
 
-- `process-compose.yaml`: `mock-server` (readiness `/__health`) → `next-build` (depends on mock-server healthy, runs once) → `next-start` (readiness `GET /`). Env from `.env.test`.
+- `process-compose.yaml`: `mock-server` (readiness `/__health`) → `next-build` (depends on mock-server healthy, runs once) → `next-start` (readiness `GET /`). Env from `test.env`.
 - `just server`, `just server-status`, `just test-e2e` fail-fast gate (health check, 5s).
 
 Verify: `direnv exec . just server` in background; `direnv exec . just server-status` exits 0; `next build` log shows no failed fetches; `curl 127.0.0.1:3000/` 200.
@@ -186,7 +180,7 @@ Depends: 11.
 
 Verify: a second agent follows README against a scratch Next repo and reaches `direnv exec . just test` green (out of scope for this repo; note only).
 
-### Phase 13 — Sandbox friction removal
+### Phase 13 — Sandbox friction removal — DONE
 
 Depends: 12. Source: PROBLEMS.md 2026-09-03. Goal: one sandbox grant (loopback), zero per-session human actions, zero ad-hoc workarounds in the agent loop.
 

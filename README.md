@@ -10,7 +10,7 @@ pins.
 
 ## Run it locally
 
-Setup phase, once, with network:
+Setup phase, once, with network (`just install` also works from inside the agent sandbox when its proxy admits the registry):
 
 ```sh
 direnv allow          # nix devShell: node, pnpm, just, process-compose, oxlint, oxfmt, chromium
@@ -25,7 +25,9 @@ Everything else goes through `just`. Agents run recipes as `direnv exec . just <
 | `just test`            | layers 1+2 for files changed since `origin/main` merge-base (or since HEAD without an upstream)  |
 | `just test-unit`       | layer 1, all of `apps/*` and `packages/*`                                                        |
 | `just test-browser`    | layer 2, real Chromium via Playwright, MSW service worker                                        |
-| `just server -D`       | detached supervisor: mock server → `next build` → `next start`; `just server-wait` blocks on it  |
+| `just server -D`       | detached supervisor: mock server → `next build` → `next start`; stops itself after `PC_TTL`s     |
+| `just http <url>`      | loopback probe via curl inside a recipe (agent shells deny bare `curl`)                          |
+| `just install`         | `CI=true pnpm install --frozen-lockfile`; `just install-update` after manifest edits             |
 | `just test-e2e`        | layer 3 against the running supervisor; exits non-zero within 5s when it is down                 |
 | `just test-all`        | wipe `test-results/`, `check`, unit, browser, rebuild + restart supervisor, e2e, print durations |
 | `just server-down`     | stop a detached supervisor                                                                       |
@@ -40,37 +42,36 @@ declaring a task done.
 
 ## Agent sandbox requirements
 
-The harness needs three grants beyond repo writes. Everything else, including all external egress,
+The harness needs one grant beyond repo writes. Everything else, including all external egress,
 stays denied.
 
 1. **Bind and connect on `127.0.0.1`, any port.** Mock server (4010), app (3000), process-compose
    control port (8474), plus the ephemeral ports vitest browser mode and Playwright CDP pick.
-2. **Read `.env.test`.** `just` loads it with `dotenv-load`. It holds loopback URLs and a
-   placeholder anon key. Keep `.env`, `.env.local`, `secrets/` denied.
-3. **`CHROMIUM_SINGLE_PROCESS=1` in the agent's environment (macOS only).** The macOS sandbox denies
-   the Mach port registration Chromium uses to spawn helper processes; the flag makes
-   `@repo/test-config` launch Chromium with `--single-process` and serialise browser test files.
-   CI and humans leave it unset.
 
-For Claude Code these are committed project settings in `.claude/settings.json`:
+For Claude Code this is a committed project setting in `.claude/settings.json`:
 
 ```json
 {
   "sandbox": {
-    "network": { "allowLocalBinding": true },
-    "filesystem": { "allowRead": [".env.test"] }
-  },
-  "env": { "CHROMIUM_SINGLE_PROCESS": "1" }
+    "network": { "allowLocalBinding": true }
+  }
 }
 ```
 
-Without grant 1, phases 2, 6, 7 and 8 fail with `ECONNREFUSED` / `EADDRNOTAVAIL` errors that look
-like harness bugs. Without grant 3 on macOS, every browser test dies at launch with
-`MachPortRendezvousServer: Permission denied`.
+Without it, phases 2, 6, 7 and 8 fail with `ECONNREFUSED` / `EADDRNOTAVAIL` errors that look like
+harness bugs.
 
-Other sandbox behaviour observed while building this repo, in `PROBLEMS.md`: no unix-socket bind in
-the repo (process-compose therefore uses TCP), no `kill`/`pkill` from the agent shell (use the
-supervisor's `server-down`), and `.env.test` is readable by `just` but not editable by the agent.
+Two former grants are gone by design. The test dotenv file is `test.env`, not `.env.test`, so the
+usual `.env*` read-deny never matches it; it holds loopback URLs and a placeholder key. On macOS the
+sandbox denies the Mach port registration Chromium uses to spawn helpers, so `@repo/test-config`
+detects Claude Code (`CLAUDECODE=1`) and launches Chromium with `--single-process`, serialising
+browser test files. `CHROMIUM_SINGLE_PROCESS=1|0` overrides the detection; CI and humans never set
+it.
+
+Other sandbox behaviour observed while building this repo, in `PROBLEMS.md` and `CLAUDE.md`: no
+unix-socket bind in the repo (process-compose therefore uses TCP), no `kill`/`pkill`/bare `curl`
+from the agent shell (use `just server-down` and `just http`), GNU sed on PATH. A detached
+supervisor stops itself after `PC_TTL` seconds (default 3600).
 
 ## Layout
 
@@ -102,9 +103,9 @@ process-compose.yaml supervisor definition
    test-only key pair instead of the unsigned tokens used here.
 5. Point `TYPES_SOURCE` at the committed generated types and make `just gen-types` regenerate them.
    Agents never run codegen.
-6. Copy `.env.test` and set every external-origin env var, server-side and `NEXT_PUBLIC_*`, to
+6. Copy `test.env` and set every external-origin env var, server-side and `NEXT_PUBLIC_*`, to
    `http://127.0.0.1:${MOCK_PORT}`. Literal IP, no DNS.
-7. Grant the sandbox the three items above.
+7. Grant the sandbox loopback bind (above).
 
 ### What ports as-is
 

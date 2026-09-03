@@ -7,7 +7,7 @@ export function testClient(): Client {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY;
   if (!url || !key)
-    throw new Error("SUPABASE_URL / SUPABASE_ANON_KEY unset: run via `just` or load .env.test");
+    throw new Error("SUPABASE_URL / SUPABASE_ANON_KEY unset: run via `just` or load test.env");
   return createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });

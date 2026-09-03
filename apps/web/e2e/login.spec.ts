@@ -1,4 +1,4 @@
-import { expect, test } from "@repo/test-config/playwright";
+import { expect, mainAlert, test } from "@repo/test-config/playwright";
 import { fixtures } from "@repo/mocks/supabase";
 
 test("sign-in form drives the server action through mocked /auth/v1/token", async ({ page }) => {
@@ -16,5 +16,5 @@ test("wrong password stays on /login with an error", async ({ page }) => {
   await page.getByLabel("Password").fill("wrong");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/login\?error=invalid_credentials$/);
-  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Invalid login credentials.");
+  await expect(mainAlert(page)).toHaveText("Invalid login credentials.");
 });

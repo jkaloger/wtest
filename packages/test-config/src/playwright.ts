@@ -3,6 +3,8 @@ import {
   defineConfig,
   test as base,
   type BrowserContext,
+  type Locator,
+  type Page,
   type PlaywrightTestConfig,
 } from "@playwright/test";
 import { authUser, userSession, type AuthUser } from "@repo/mocks/auth";
@@ -10,6 +12,11 @@ import { chromiumArgs, singleProcess } from "./chromium.ts";
 import { reports, RESULTS_DIR } from "./vitest.ts";
 
 export { expect } from "@playwright/test";
+
+// Next's <next-route-announcer> also has role="alert"; page-level getByRole("alert") is ambiguous.
+export function mainAlert(page: Page): Locator {
+  return page.getByRole("main").getByRole("alert");
+}
 
 export const APP_URL = process.env.APP_URL ?? "http://127.0.0.1:3000";
 export const MOCK_URL = process.env.MOCK_URL ?? `http://127.0.0.1:${process.env.MOCK_PORT ?? 4010}`;

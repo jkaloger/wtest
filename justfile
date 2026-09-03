@@ -1,11 +1,12 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
-set dotenv-filename := ".env.test"
+set dotenv-filename := "test.env"
 set dotenv-load := true
 
 base_branch := env("BASE_BRANCH", "main")
 mock_port := env("MOCK_PORT", "4010")
 export APP_PORT := env("APP_PORT", "3000")
 pc_port := env("PC_PORT", "8474")
+export PC_TTL := env("PC_TTL", "3600")
 results := "test-results"
 
 _default:
@@ -40,6 +41,7 @@ enforce:
     scripts/check-origins.sh
     scripts/check-playwright-version.sh
     scripts/check-test-placement.sh
+    scripts/check-workspace-yaml.sh
 
 # ---------------------------------------------------------------------------
 # tests
@@ -84,8 +86,8 @@ test-all:
 # server supervisor
 # ---------------------------------------------------------------------------
 
-# Long-lived: mock-server -> next build -> next start. Humans only, never agents.
-# Pass `-D` to detach; `just server-down` stops a detached supervisor.
+# Long-lived: mock-server -> next build -> next start. Agents run it detached (`-D`) and stop it
+# with `just server-down`; the watchdog process stops it after PC_TTL seconds regardless.
 server *flags:
     process-compose up -f process-compose.yaml --disable-dotenv -t=false -p {{pc_port}} {{flags}}
 
@@ -117,6 +119,10 @@ server-wait timeout="180":
 server-logs process="next-build":
     process-compose process logs {{process}} -p {{pc_port}}
 
+# Loopback probe. Agent shells commonly deny bare `curl`; inside a recipe it runs fine.
+http url:
+    curl -fsS --max-time 5 "{{url}}"
+
 # Both health endpoints, bounded so the e2e gate answers within 5s.
 server-status:
     @curl -fsS --max-time 2 http://127.0.0.1:{{mock_port}}/__health >/dev/null || { echo "mock server down on :{{mock_port}}"; exit 1; }
@@ -124,8 +130,18 @@ server-status:
     @echo "server up: mock :{{mock_port}}, app :{{APP_PORT}}"
 
 # ---------------------------------------------------------------------------
-# setup phase (network, outside sandbox, humans only)
+# setup phase (network)
 # ---------------------------------------------------------------------------
+
+# CI=true: without a TTY pnpm aborts its modules purge. Runs inside the agent sandbox when its
+# proxy admits the registry; otherwise a human step. Lockfile diffs are always human-reviewed.
+install:
+    CI=true pnpm install --frozen-lockfile
+
+# After manifest edits.
+install-update:
+    CI=true pnpm install --no-frozen-lockfile
+
 
 # Regenerate packages/types/src/supabase.ts from a real project. Needs SUPABASE_PROJECT_ID + network.
 gen-types:

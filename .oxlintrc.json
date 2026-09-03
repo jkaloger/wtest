@@ -17,6 +17,10 @@
               {
                 "name": "@playwright/test",
                 "message": "Playwright is layer 3 only (apps/web/e2e)."
+              },
+              {
+                "name": "@vitest/browser/context",
+                "message": "Import page/userEvent from vitest/browser (Vitest 4 re-export)."
               }
             ],
             "patterns": [

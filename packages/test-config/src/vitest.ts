@@ -19,7 +19,7 @@ export type ProjectOptions = {
   resultsRoot?: string;
   /** Replaces the default include globs. */
   include?: string[];
-  /** Values exposed to tests as `process.env`. Loopback URLs from `.env.test` belong here. */
+  /** Values exposed to tests as `process.env`. Loopback URLs from `test.env` belong here. */
   env?: Record<string, string>;
 };
 
@@ -84,16 +84,16 @@ export function envDefine(env: Record<string, string>): Record<string, string> {
   );
 }
 
-// `just` loads .env.test via dotenv-load; this makes bare `vitest` and IDE runs see the same values.
+// `just` loads test.env via dotenv-load; this makes bare `vitest` and IDE runs see the same values.
 export type TestEnvOptions = {
   filename?: string;
-  /** Extra process.env keys forwarded to tests even though .env.test does not declare them. */
+  /** Extra process.env keys forwarded to tests even though test.env does not declare them. */
   passthrough?: string[];
 };
 
 export function loadTestEnv(
   startDir: string,
-  { filename = ".env.test", passthrough = [] }: TestEnvOptions = {},
+  { filename = "test.env", passthrough = [] }: TestEnvOptions = {},
 ): Record<string, string> {
   const file = findUp(startDir, filename);
   if (!file) throw new Error(`${filename} not found above ${startDir}`);

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs SPEC.md acceptance criteria AC2-AC9 as executable checks and prints a table.
+# Runs SPEC.md acceptance criteria AC2-AC10 as executable checks and prints a table.
 # AC1 is the CI job (unshare + nix develop) and is reported as SKIP here.
 # Plants violations into the tree and reverts them; run on a clean checkout.
 set -uo pipefail
@@ -126,6 +126,16 @@ else
   fail 9 "exit $code after ${elapsed}s"
 fi
 if [ $was_up -eq 1 ]; then quiet just server -D; quiet just server-wait || echo "warning: server did not come back"; fi
+
+# AC10: a detached supervisor with a short PC_TTL stops itself. Spare control port, no server-down.
+PC_TTL=5 PC_PORT=8475 quiet just server -D
+sleep 15
+if quiet process-compose process list -p 8475; then
+  fail 10 "supervisor on :8475 still up 15s after PC_TTL=5"
+  quiet process-compose down -p 8475
+else
+  pass 10 "PC_TTL=5 supervisor gone within 15s"
+fi
 
 echo
 echo "AC   result  detail"

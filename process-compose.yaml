@@ -43,3 +43,9 @@ processes:
       failure_threshold: 30
     availability:
       restart: on_failure
+
+  # A detached supervisor left behind by an agent stops itself after PC_TTL seconds.
+  watchdog:
+    command: sleep ${PC_TTL}
+    availability:
+      exit_on_end: true

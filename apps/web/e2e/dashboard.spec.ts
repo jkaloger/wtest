@@ -1,9 +1,9 @@
-import { expect, test } from "@repo/test-config/playwright";
+import { expect, mainAlert, test } from "@repo/test-config/playwright";
 
 test("profiles outage renders the error state", async ({ page, authed, mock }) => {
   await mock.scenario("serverError", "profiles");
   await page.goto("/dashboard");
-  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Could not load profiles");
+  await expect(mainAlert(page)).toHaveText("Could not load profiles");
   await expect(page.getByText(`Signed in as ${authed.email}`)).toBeVisible();
 });
 
