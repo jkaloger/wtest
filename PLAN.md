@@ -20,6 +20,8 @@ The harness cannot run without these two. Everything else stays denied, includin
 1. **Bind and connect on `127.0.0.1`, any port.** Mock server 4010, `next start` 3000, plus ephemeral ports vitest browser mode and Playwright CDP pick at runtime. A loopback listener is unreachable off-host, so this grants no egress.
 2. **Read `<repo>/.env.test`.** `just` uses `dotenv-load`. Contents are loopback URLs and the literal `test-anon-key`. Keep `.env`, `.env.local`, `secrets/` denied.
 
+3. **`CHROMIUM_SINGLE_PROCESS=1` in the agent environment (macOS only).** Discovered in phase 6: the macOS sandbox denies the Mach port registration Chromium needs to spawn helpers. See PROBLEMS.md and README.md.
+
 Both are honored from committed project settings — `.claude/settings.json`:
 
 ```json
@@ -63,13 +65,13 @@ Files: `flake.nix`, `flake.lock`, `pnpm-workspace.yaml`, root `package.json`, `t
 
 Verify: `direnv exec . just check` exits 0 on empty tree (oxlint + tsc over nothing).
 
-### Phase 1 — `packages/types`
+### Phase 1 — `packages/types` — DONE
 
 `@repo/types`: `src/supabase.ts` exporting `Database` in `supabase gen types` shape with `public.Tables.profiles` (`id uuid`, `username text`, `display_name text | null`, `created_at timestamptz`). Header comment: hand-written PoC stand-in; regenerate via `just gen-types`.
 
 Verify: `direnv exec . pnpm -F @repo/types tsc --noEmit`.
 
-### Phase 2 — `packages/mocks`
+### Phase 2 — `packages/mocks` — DONE
 
 Depends: 1.
 
@@ -84,7 +86,7 @@ Depends: 1.
 
 Verify: `direnv exec . pnpm -F @repo/mocks test` (plain vitest, node) green; `direnv exec . pnpm -F @repo/mocks start & curl 127.0.0.1:4010/__health`.
 
-### Phase 3 — `packages/test-config`
+### Phase 3 — `packages/test-config` — DONE
 
 Depends: 2.
 
@@ -94,7 +96,7 @@ Depends: 2.
 
 Verify: `direnv exec . pnpm -F @repo/test-config tsc --noEmit`.
 
-### Phase 4 — Toy Next app
+### Phase 4 — Toy Next app — DONE
 
 Depends: 3.
 
@@ -110,7 +112,7 @@ Depends: 3.
 
 Verify: `direnv exec . pnpm -F web tsc --noEmit`; `direnv exec . just check`.
 
-### Phase 5 — Layer 1 tests in app
+### Phase 5 — Layer 1 tests in app — DONE
 
 Depends: 4.
 
@@ -118,7 +120,7 @@ Depends: 4.
 
 Verify: `direnv exec . just test-unit` green; `test-results/unit.json` exists.
 
-### Phase 6 — Layer 2 tests
+### Phase 6 — Layer 2 tests — DONE
 
 Depends: 4.
 
@@ -128,7 +130,7 @@ Depends: 4.
 
 Verify: `direnv exec . just test-browser` green; `DEMO_FAIL=1 direnv exec . just test-browser` exits non-zero and writes PNG under `test-results/browser/`.
 
-### Phase 7 — Server supervisor
+### Phase 7 — Server supervisor — DONE
 
 Depends: 4.
 
@@ -137,7 +139,7 @@ Depends: 4.
 
 Verify: `direnv exec . just server` in background; `direnv exec . just server-status` exits 0; `next build` log shows no failed fetches; `curl 127.0.0.1:3000/` 200.
 
-### Phase 8 — Layer 3 tests
+### Phase 8 — Layer 3 tests — DONE
 
 Depends: 3, 7.
 
@@ -145,7 +147,7 @@ Depends: 3, 7.
 
 Verify: server up, `direnv exec . just test-e2e` green; `test-results/e2e.json` exists.
 
-### Phase 9 — Lint + enforcement in `check`
+### Phase 9 — Lint + enforcement in `check` — DONE
 
 Depends: 4, 8.
 
@@ -158,7 +160,7 @@ Depends: 4, 8.
 
 Verify: `direnv exec . just check` green; each script fails on a planted violation (add + revert in the iteration, don't commit violations).
 
-### Phase 10 — `test`, `test-all`, AC script
+### Phase 10 — `test`, `test-all`, AC script — DONE
 
 Depends: 5, 6, 8, 9.
 
@@ -168,7 +170,7 @@ Depends: 5, 6, 8, 9.
 
 Verify: `direnv exec . just test-all` green; `scripts/verify-ac.sh` all pass except AC1 (CI).
 
-### Phase 11 — CI
+### Phase 11 — CI — DONE (workflow committed; green run pending human confirmation)
 
 Depends: 10.
 
@@ -176,7 +178,7 @@ Depends: 10.
 
 Verify: workflow green on push (human confirms; agent cannot).
 
-### Phase 12 — Adoption README
+### Phase 12 — Adoption README — DONE
 
 Depends: 11.
 

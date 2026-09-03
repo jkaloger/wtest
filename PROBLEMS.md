@@ -20,3 +20,5 @@ Running notes from the implementing agent. Sandbox permissions, command failures
 - Single-process Chromium kills the browser when a context closes, so Playwright under `CHROMIUM_SINGLE_PROCESS=1` shares one worker-scoped context and clears cookies between tests (see `packages/test-config/src/playwright.ts`). Multi-process runs keep Playwright's default per-test context.
 - Login e2e initially bounced back to `/login`: the mock's `/auth/v1/user` was a static anon 401, so the dashboard's `getUser()` failed after a successful sign-in. Fixed by making the default handler decode the bearer JWT the mock itself issued. `anonSession()` now means "force 401 even with a token".
 - Next's `<next-route-announcer>` has `role="alert"`; page-level `getByRole("alert")` is ambiguous in e2e. Scope to `main`.
+- Phase 11 (CI) is committed but unverified: the agent cannot push or watch a workflow run. Ubuntu 24.04 needs `kernel.apparmor_restrict_unprivileged_userns=0` for `unshare -Urn`; the workflow sets it.
+- The detached supervisor started by the agent (`just server -D`, control port 8474) was left running at the end of the session. `just server-down` stops it.
