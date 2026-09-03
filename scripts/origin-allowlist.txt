@@ -1,0 +1,4 @@
+# One literal per line. Matched as a fixed substring against lines in apps/web/src that contain https?://.
+# Schema URLs and documentation links belong here; real origins never do — those come from env via lib/*/client.ts.
+https://nextjs.org/docs
+https://json.schemastore.org

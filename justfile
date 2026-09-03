@@ -15,8 +15,14 @@ _default:
 # check / fmt
 # ---------------------------------------------------------------------------
 
-# oxlint, format check, typecheck. Phase 9 adds the enforcement scripts.
-check: lint fmt-check typecheck
+# oxlint, format check, typecheck, plus the SPEC.md enforcement scripts (AC5, AC6, AC8).
+check: lint fmt-check typecheck enforce
+
+enforce:
+    scripts/check-vi-mock.sh
+    scripts/check-origins.sh
+    scripts/check-playwright-version.sh
+    scripts/check-test-placement.sh
 
 # oxlint exits 1 when it matches zero files, which is the state until phase 1.
 lint:

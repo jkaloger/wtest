@@ -1,0 +1,58 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import"],
+  "categories": { "correctness": "error" },
+  "ignorePatterns": ["apps/web/public/mockServiceWorker.js", "**/.next/**", "**/test-results/**"],
+  "rules": {
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.browser.test.ts", "**/*.browser.test.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@playwright/test",
+                "message": "Playwright is layer 3 only (apps/web/e2e)."
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["**/app/**", "**/app"],
+                "message": "Never import Next routes from vitest tests; that wiring is e2e."
+              },
+              {
+                "group": ["@testing-library/*"],
+                "message": "Use vitest-browser-react locators in browser mode."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/web/e2e/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              { "name": "vitest", "message": "e2e specs run under Playwright, not vitest." },
+              { "name": "vitest-browser-react", "message": "Component rendering is layer 2." }
+            ],
+            "patterns": [
+              { "group": ["@testing-library/*"], "message": "No DOM testing libraries in e2e." },
+              {
+                "group": ["**/src/components/**", "**/src/components"],
+                "message": "Anything component-shaped belongs in a *.browser.test.tsx."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
