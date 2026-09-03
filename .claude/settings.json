@@ -3,9 +3,6 @@
   "sandbox": {
     "network": {
       "allowLocalBinding": true
-    },
-    "filesystem": {
-      "allowRead": [".env.test"]
     }
   }
 }
