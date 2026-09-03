@@ -22,6 +22,7 @@ Portable spec. Copy this file into the adopting repo as `SPEC.md`. Fill the para
 | `PC_TTL`           | `3600`                              | Seconds before a detached supervisor stops itself           |
 | `RESULTS_DIR`      | `test-results/` at the repo root    | Layer 1 spans `packages/*`, so reports live above `apps/`   |
 | `ENV_FILE`         | `test.env`                          | Loopback URLs + placeholder key. Not `.env.*`: see Sandbox  |
+| `SCREENSHOTS`      | `failures`                          | `all` = PNG per test in layers 2+3; `test-all` defaults to `all` |
 | `CI`               | `github-actions` (ubuntu, nix)      | Any Linux runner with nix + `unshare`                       |
 
 ## Objective
@@ -84,9 +85,11 @@ packages/test-config/          @repo/test-config
   src/playwright.ts            playwrightConfig(), `authed` fixture, mainAlert(page)
   src/chromium.ts              single-process Chromium detection (macOS agent sandbox)
   src/reporter.ts              vitest JsonReporter subclass adding screenshots[] per assertion
-  src/setup/unit.ts  src/setup/browser.ts
+  src/setup/unit.ts  src/setup/browser.ts   (browser: MSW worker + SCREENSHOTS=all afterEach)
 packages/types/                @repo/types: committed generated backend types
-test-results/                  RESULTS_DIR: unit.json browser.json e2e.json, browser/ e2e/ artefacts
+test-results/                  RESULTS_DIR: unit.json browser.json e2e.json, browser/ e2e/ artefacts,
+                               index.html (gallery), e2e-report/ (Playwright HTML)
+scripts/                       enforcement scripts, report-durations.mjs, gallery.mjs, verify-ac.sh
 vitest.config.ts               root: `unit` project over apps/* + packages/*, `browser` over apps/web
 justfile  flake.nix  process-compose.yaml  test.env  CLAUDE.md (agent gotchas)
 ```
@@ -126,9 +129,11 @@ Rules:
       headless: true,
       screenshotFailures: true,
       screenshotDirectory: 'test-results/browser',
+      trace: { mode: 'retain-on-failure', tracesDir: 'test-results/browser/traces' },
     },
   }
   ```
+- Pass-case screenshots: `setup/browser.ts` registers an `afterEach` that, when `SCREENSHOTS=all`, calls `page.screenshot()` for every non-failed test (vitest already shoots failures) and records the returned path with `context.annotate(path, 'screenshot')`. Message-only annotation: an annotation carrying an attachment path is copied into `attachmentsDir`, which would duplicate every PNG. The factory injects `SCREENSHOTS` via `define` like the rest of the env. Default `page.screenshot()` path is `screenshotDirectory/<file>/<test>.png`, so pass and fail PNGs share one tree.
 - Render with `render()` / `renderHook()` from `vitest-browser-react`. Interact via `page`, `userEvent` from `vitest/browser` (Vitest 4 re-export; `@vitest/browser/context` is banned by lint to avoid a direct `@vitest/browser` dep). Real CDP input. Assert via `expect.element(locator)`; locators auto-retry, no manual waits.
 - Env: vitest does not forward `test.env` into the browser's `process.env` shim. The factory mirrors Next's inlining and injects every key via vite `define` (`process.env.KEY` → literal). Loopback test values only.
 - Vite 8 (vitest 4) transforms JSX with oxc, not esbuild: configure `oxc.jsx.runtime`, never `esbuild.jsx`.
@@ -146,7 +151,7 @@ RTL → browser-mode equivalence: `render` → `render`; `screen.getBy*` → loc
 
 - Separate `playwright.config.ts` from `playwrightConfig()` factory. Not a vitest project.
 - Scope: routing, `proxy.ts` auth redirects, server actions end-to-end, one smoke test per top-level route. Hard cap 20 tests. Anything component-shaped moves to layer 2.
-- Config: `reporter: [['line'], ['json', { outputFile: 'test-results/e2e.json' }]]`, `outputDir: 'test-results/e2e'`, `trace: 'retain-on-failure'`, `screenshot: 'only-on-failure'`, `video: 'off'`, `maxFailures: 3`, `workers: 1`, `fullyParallel: false`. No `webServer` block: the supervisor owns the server.
+- Config: `reporter: [['line'], ['json', { outputFile: 'test-results/e2e.json' }], ['html', { outputFolder: 'test-results/e2e-report', open: 'never' }]]`, `outputDir: 'test-results/e2e'`, `trace: 'retain-on-failure'`, `screenshot: SCREENSHOTS === 'all' ? 'on' : 'only-on-failure'`, `video: 'off'`, `maxFailures: 3`, `workers: 1`, `fullyParallel: false`. No `webServer` block: the supervisor owns the server. `outputFolder` sits beside `outputDir`, never inside it: Playwright wipes `outputDir` per run.
 - **Interception = loopback mock server**, not in-process MSW. `@repo/mocks/server` = express + `@mswjs/http-middleware(handlers)` + `POST /__scenario { origin, name, args }` + `POST /__reset` + `GET /__health`. Responses carry `Cache-Control: no-store`.
   - Every external-origin env var, server-side and `NEXT_PUBLIC_*`, points at `http://127.0.0.1:${MOCK_PORT}` in `ENV_FILE`. Literal IP, no DNS.
   - Mock server must be up before `next build`: static prerender fetches hit it.
@@ -186,7 +191,8 @@ Recipe names use `-`, not `:`. `just` parses recipe names as identifiers, so `te
 | `test-unit`      | layer 1 full; fails on zero tests                                                                                                |
 | `test-browser`   | layer 2 full; fails on zero tests                                                                                                |
 | `test-e2e`       | layer 3; requires server up (`GET /__health` + app health), fails fast otherwise; stale `.next` accepted                         |
-| `test-all`       | wipe `RESULTS_DIR`, `check`, layers 1+2 full, rebuild + restart server, layer 3, print durations                                 |
+| `test-all`       | wipe `RESULTS_DIR`, `check`, layers 1+2 full, rebuild + restart server, layer 3, print durations, write gallery; `SCREENSHOTS` defaults to `all` here only |
+| `report`         | regenerate `RESULTS_DIR/index.html` from whatever reports exist, then open it (`open` / `xdg-open`); human recipe               |
 | `server`         | `process-compose up`: mock-server → `next build` → `next start` (+ `watchdog`), readiness probes; `-D` detaches                  |
 | `server-restart` | `server-down`, `server -D`, `server-wait`; what `test-all` uses                                                                  |
 | `server-wait`    | block until both health checks pass or `next build` fails (default 180s)                                                         |
@@ -219,9 +225,16 @@ Supervisor = `process-compose` from nixpkgs, declared in `process-compose.yaml`.
 ## Output contract for agents
 
 - `RESULTS_DIR/unit.json`, `RESULTS_DIR/browser.json` (vitest `--reporter=default --reporter=@repo/test-config/reporter --outputFile`), `RESULTS_DIR/e2e.json`. Wiped at the start of every `test*` recipe. The reporter subclasses vitest's `JsonReporter` because the stock one omits artefacts; it adds `screenshots[]` to each failed assertion.
-- Screenshots: `test-results/browser/<file>/<test>.png` (vitest scheme), `test-results/e2e/<spec>-<test>/…` (Playwright scheme). Paths appear in the JSON reports.
+- Screenshots: `test-results/browser/<file>/<test>.png` (vitest scheme), `test-results/e2e/<spec>-<test>/…` (Playwright scheme). Paths appear in the JSON reports: `screenshots[]` per vitest assertion (failure artefacts plus `screenshot` annotations), `attachments[]` per Playwright result. Failures always; every test when `SCREENSHOTS=all`.
+- Traces: `test-results/browser/traces/*.trace.zip`, `test-results/e2e/<spec>-<test>/trace.zip`. Failures only. Open with `playwright show-trace <zip>` or the Playwright HTML report.
 - Exit codes are the sole pass/fail signal. No prompts, no watch mode in agent-invoked recipes.
 - Timing targets are soft, measured on CI from report durations and printed by `test-all`: unit full < 5s, `--changed` < 1s, browser cold < 10s, warm single file < 3s, e2e < 60s. No timing gate fails a run.
+
+## Output contract for humans
+
+Agents read JSON; humans read `RESULTS_DIR/index.html`. `scripts/gallery.mjs` (plain node, no deps) reads whichever of `unit.json`, `browser.json`, `e2e.json` exist and writes one self-contained page: a summary row per layer, then one row per layer-2 and layer-3 test with status, duration, every screenshot inline (relative paths, so the page works from a CI artifact zip), the failure message, and a trace link. Passes without screenshots render as a green row. `test-all` writes it last; `just report` regenerates and opens it. Playwright's HTML report at `RESULTS_DIR/e2e-report/index.html` adds the embedded trace viewer for layer 3.
+
+CI uploads `RESULTS_DIR` on every run, not only on failure, so the gallery doubles as the visual review of a green PR. Inline images in PR comments or job summaries need hosted URLs; out of scope.
 
 ## Lint rules (oxlint, run by `check`)
 
@@ -249,7 +262,9 @@ All mechanised. "Passes" = exit 0.
 8. `just check` fails if `playwright` in `node_modules` differs from `PLAYWRIGHT_VERSION`.
 9. `just test-e2e` exits non-zero within 5s when the server is not running.
 10. `PC_TTL=5 just server -D` on a spare `PC_PORT` is gone within 15s without `server-down`.
+11. A deliberately failing e2e spec writes a PNG under `test-results/e2e/` and its path appears in `test-results/e2e.json` `attachments[]`.
+12. `SCREENSHOTS=all just test-browser` gives every passed assertion in `browser.json` a `screenshots[]` entry whose file exists, and `scripts/gallery.mjs` then writes `test-results/index.html` containing one `<img>` per such entry.
 
 ## Out of scope
 
-Coverage. `@mswjs/data`. Signed JWTs (unless ADAPT triggered). Visual regression. Astro proof.
+Coverage. `@mswjs/data`. Signed JWTs (unless ADAPT triggered). Visual regression (the gallery is for eyeballs, not diffs). Hosted screenshot URLs for PR comments. Astro proof.

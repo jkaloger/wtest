@@ -199,15 +199,32 @@ Verify: `direnv exec . just check` green; with `CHROMIUM_SINGLE_PROCESS` unset i
 
 Human after phase 13: delete `filesystem.allowRead` from `.claude/settings.json`; optionally trust the proxy CA for `gh` (`SSL_CERT_FILE`) so the agent can `gh run watch` and close out phase 11's pending verification.
 
+### Phase 14 — Screenshots for review — TODO
+
+Depends: 13. Source: session 2026-09-03. Goal: every test can leave a PNG, agents read paths from JSON, humans read one HTML page. Default behaviour unchanged for `just test`.
+
+- **`SCREENSHOTS` param.** `failures` (default) | `all`. `justfile`: `test-all` runs layers 2+3 with `SCREENSHOTS=${SCREENSHOTS:-all}`; no other recipe sets it.
+- **Layer 2 pass screenshots.** `setup/browser.ts`: `afterEach` → skip unless `SCREENSHOTS=all`, skip when `task.result.state === "fail"` (vitest shoots failures), else `const path = await page.screenshot()` and `context.annotate(path, "screenshot")`. `browserProject()` adds `process.env.SCREENSHOTS` to `define`. Add `browser.trace: { mode: "retain-on-failure", tracesDir: <resultsRoot>/test-results/browser/traces }`.
+- **Reporter.** `reporter.ts`: `screenshots[]` = failure artefacts ∪ `annotations()` with `type === "screenshot"` (message is the path). Applies to passed assertions too.
+- **Layer 3.** `playwright.ts`: `screenshot: process.env.SCREENSHOTS === "all" ? "on" : "only-on-failure"`; add `["html", { outputFolder: <resultsRoot>/test-results/e2e-report, open: "never" }]` reporter. `test-e2e` recipe also wipes `e2e-report/`.
+- **e2e failure demo.** `apps/web/e2e/__demo__/fail.spec.ts`, `test.skip(process.env.DEMO_FAIL !== "1")`, asserts text that never renders. Mirrors the layer-2 demo.
+- **Gallery.** `scripts/gallery.mjs`: read `test-results/{unit,browser,e2e}.json` if present; write `test-results/index.html`. Summary table per layer (passed/total, duration). Then rows: layer, file, test, status, ms, `<img>` per screenshot (paths relative to `test-results/`), failure message in `<pre>`, trace link. Link to `e2e-report/index.html` when present. No deps, inline CSS, HTML-escape everything.
+- **Recipes.** `test-all` appends `node scripts/gallery.mjs`. New `report`: `node scripts/gallery.mjs` then `open` / `xdg-open` `test-results/index.html`.
+- **CI.** `upload-artifact` `if: always()`.
+- **AC11, AC12** in `scripts/verify-ac.sh`. AC11: `DEMO_FAIL=1 just test-e2e` exits non-zero, `e2e.json` has an attachment path under `test-results/e2e/` that exists (needs server up; SKIP otherwise, like the server-dependent checks). AC12: `SCREENSHOTS=all just test-browser`, every passed assertion has `screenshots[0]` on disk, `gallery.mjs` writes `index.html` with `<img` count ≥ passed count.
+- **Docs.** README recipe table (`report`, `SCREENSHOTS`), results paragraph; SPEC.md already updated.
+
+Verify: `direnv exec . just check` green; `direnv exec . just test-browser` unchanged (no pass PNGs); `SCREENSHOTS=all direnv exec . just test-browser` → PNG per passed test, paths in `browser.json`; server up, `DEMO_FAIL=1 direnv exec . just test-e2e` non-zero with PNG + `attachments[]` path; `direnv exec . just test-all` green and `test-results/index.html` opens with images; `scripts/verify-ac.sh` AC2–AC12 pass.
+
 ## Dependency graph
 
 ```
 0 → 1 → 2 → 3 → 4 → {5, 6, 7}
                       7 → 8
                  {4, 8} → 9
-           {5, 6, 8, 9} → 10 → 11 → 12 → 13
+           {5, 6, 8, 9} → 10 → 11 → 12 → 13 → 14
 ```
 
 ## Done when
 
-`scripts/verify-ac.sh` passes AC2–AC10 locally and CI passes AC1 on a fresh clone.
+`scripts/verify-ac.sh` passes AC2–AC12 locally and CI passes AC1 on a fresh clone.
