@@ -33,7 +33,7 @@ Both are honored from committed project settings — `.claude/settings.json`:
 
 `allowRead` re-allows a single path inside a `denyRead` region and takes precedence over it, so a blanket `Read(./.env.*)` deny stays in force for every other dotenv file. Neither key can disable isolation wholesale: `network.strictAllowlist` and `filesystem.disabled` are ignored when set from project settings, by design.
 
-Deliberately *not* granted: nix daemon socket, `~/.cache/nix` and `~/.local/state/nix` writes, npm registry egress.
+Deliberately _not_ granted: nix daemon socket, `~/.cache/nix` and `~/.local/state/nix` writes, npm registry egress.
 
 ## Human setup tasks (outside sandbox)
 

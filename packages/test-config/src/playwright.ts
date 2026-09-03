@@ -13,7 +13,10 @@ export type PlaywrightOptions = {
 };
 
 // No webServer block on purpose: `just server` (process-compose) owns the app and mock server.
-export function playwrightConfig({ testDir, baseURL = APP_URL }: PlaywrightOptions): PlaywrightTestConfig {
+export function playwrightConfig({
+  testDir,
+  baseURL = APP_URL,
+}: PlaywrightOptions): PlaywrightTestConfig {
   return defineConfig({
     testDir,
     testMatch: "**/*.spec.ts",
@@ -39,13 +42,18 @@ export type Mock = {
   reset: () => Promise<void>;
 };
 
-export async function applyScenario(name: string, args: unknown[] = [], origin = "supabase"): Promise<void> {
+export async function applyScenario(
+  name: string,
+  args: unknown[] = [],
+  origin = "supabase",
+): Promise<void> {
   const res = await fetch(`${MOCK_URL}/__scenario`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ origin, name, args }),
   });
-  if (!res.ok) throw new Error(`__scenario ${origin}.${name} failed: ${res.status} ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`__scenario ${origin}.${name} failed: ${res.status} ${await res.text()}`);
 }
 
 export async function resetMocks(): Promise<void> {
@@ -60,6 +68,8 @@ type Fixtures = {
 
 export const test = base.extend<Fixtures>({
   mock: [
+    // Playwright requires the destructuring pattern even with no dependencies.
+    // oxlint-disable-next-line no-empty-pattern
     async ({}, use) => {
       await resetMocks();
       await use({ scenario: (name, ...args) => applyScenario(name, args), reset: resetMocks });
@@ -70,7 +80,11 @@ export const test = base.extend<Fixtures>({
   authed: async ({ context, baseURL, mock }, use) => {
     const user = authUser();
     await mock.scenario("auth.user", user);
-    const cookies = userSession(user).cookies.map(({ name, value }) => ({ name, value, url: baseURL ?? APP_URL }));
+    const cookies = userSession(user).cookies.map(({ name, value }) => ({
+      name,
+      value,
+      url: baseURL ?? APP_URL,
+    }));
     await context.addCookies(cookies);
     await use(user);
   },

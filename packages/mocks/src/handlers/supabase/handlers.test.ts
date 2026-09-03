@@ -68,7 +68,10 @@ describe("auth", () => {
     const res = await fetch(`${BASE}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: fixtures.authUser().email, password: fixtures.FIXTURE_PASSWORD }),
+      body: JSON.stringify({
+        email: fixtures.authUser().email,
+        password: fixtures.FIXTURE_PASSWORD,
+      }),
     });
     const body = await res.json();
     expect(res.status).toBe(200);

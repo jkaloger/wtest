@@ -6,20 +6,20 @@ Decision record: `.hydra/spec-precision.json`.
 
 ## Parameters
 
-| Param              | Default here                                  | Notes                                                                 |
-| ------------------ | --------------------------------------------- | --------------------------------------------------------------------- |
-| `FRAMEWORK`        | `next` (App Router)                           | `astro` variant is documented but unproven                            |
-| `WORKSPACE`        | `monorepo` (pnpm workspaces)                  | `single` = flatten packages into `src/mocks/` + `test/`               |
-| `PM`               | `pnpm`                                        | Any PM; all commands go through `justfile`                            |
-| `SRC_DIR`          | `apps/web/src`                                |                                                                       |
-| `APP_DIR`          | `apps/web/app`                                | Next routes. No test files here, ever                                 |
-| `E2E_DIR`          | `apps/web/e2e`                                |                                                                       |
-| `EXTERNAL_ORIGINS` | `supabase` (`/rest/v1`, `/auth/v1`)           | One handler module + one client factory per origin                    |
-| `AUTH_PROVIDER`    | `supabase-ssr`                                | See Auth fixtures                                                     |
-| `TYPES_SOURCE`     | `@repo/types` (`packages/types`)              | Where backend row/DTO types live; fixtures import from here           |
-| `BASE_BRANCH`      | `main`                                        | Merge-base for `--changed`                                            |
-| `MOCK_PORT`        | `4010`                                        | Loopback mock server                                                  |
-| `CI`               | `github-actions` (ubuntu, nix)                | Any Linux runner with nix + `unshare`                                 |
+| Param              | Default here                        | Notes                                                       |
+| ------------------ | ----------------------------------- | ----------------------------------------------------------- |
+| `FRAMEWORK`        | `next` (App Router)                 | `astro` variant is documented but unproven                  |
+| `WORKSPACE`        | `monorepo` (pnpm workspaces)        | `single` = flatten packages into `src/mocks/` + `test/`     |
+| `PM`               | `pnpm`                              | Any PM; all commands go through `justfile`                  |
+| `SRC_DIR`          | `apps/web/src`                      |                                                             |
+| `APP_DIR`          | `apps/web/app`                      | Next routes. No test files here, ever                       |
+| `E2E_DIR`          | `apps/web/e2e`                      |                                                             |
+| `EXTERNAL_ORIGINS` | `supabase` (`/rest/v1`, `/auth/v1`) | One handler module + one client factory per origin          |
+| `AUTH_PROVIDER`    | `supabase-ssr`                      | See Auth fixtures                                           |
+| `TYPES_SOURCE`     | `@repo/types` (`packages/types`)    | Where backend row/DTO types live; fixtures import from here |
+| `BASE_BRANCH`      | `main`                              | Merge-base for `--changed`                                  |
+| `MOCK_PORT`        | `4010`                              | Loopback mock server                                        |
+| `CI`               | `github-actions` (ubuntu, nix)      | Any Linux runner with nix + `unshare`                       |
 
 ## Objective
 
@@ -37,18 +37,18 @@ Three-layer harness for agent-driven iteration. Sub-second verify loop for logic
 
 Minimum majors = latest stable as of Sep 2026. Config below is written against these APIs. `VERIFY` = confirm against npm/nixpkgs when adopting; sandbox blocks the lookup.
 
-| Package                      | Floor              | Why it matters                                                       |
-| ---------------------------- | ------------------ | -------------------------------------------------------------------- |
-| `vitest`                     | 4 `VERIFY`         | `test.projects` (workspace file removed), provider packages          |
-| `@vitest/browser-playwright` | matches vitest     | Browser provider split out of `@vitest/browser`                      |
-| `vitest-browser-react`       | latest `VERIFY`    | `render`, `renderHook`                                               |
-| `msw`                        | 2 `VERIFY`         | `http`/`HttpResponse` API                                            |
-| `@mswjs/http-middleware`     | latest `VERIFY`    | Loopback mock server                                                 |
-| `next`                       | 16 `VERIFY`        | `proxy.ts` on Node runtime; static prerender fetches at build        |
-| `react`                      | 19                 |                                                                      |
-| `node`                       | current LTS        | From flake                                                           |
-| `playwright` / `@playwright/test` | = `playwright-driver.version` in pinned nixpkgs | Exact pin, checked by `just check`  |
-| `oxlint`, `oxfmt`            | latest `VERIFY`    | oxfmt falls back to prettier if absent in nixpkgs                    |
+| Package                           | Floor                                           | Why it matters                                                |
+| --------------------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
+| `vitest`                          | 4 `VERIFY`                                      | `test.projects` (workspace file removed), provider packages   |
+| `@vitest/browser-playwright`      | matches vitest                                  | Browser provider split out of `@vitest/browser`               |
+| `vitest-browser-react`            | latest `VERIFY`                                 | `render`, `renderHook`                                        |
+| `msw`                             | 2 `VERIFY`                                      | `http`/`HttpResponse` API                                     |
+| `@mswjs/http-middleware`          | latest `VERIFY`                                 | Loopback mock server                                          |
+| `next`                            | 16 `VERIFY`                                     | `proxy.ts` on Node runtime; static prerender fetches at build |
+| `react`                           | 19                                              |                                                               |
+| `node`                            | current LTS                                     | From flake                                                    |
+| `playwright` / `@playwright/test` | = `playwright-driver.version` in pinned nixpkgs | Exact pin, checked by `just check`                            |
+| `oxlint`, `oxfmt`                 | latest `VERIFY`                                 | oxfmt falls back to prettier if absent in nixpkgs             |
 
 ## Layout
 
@@ -98,9 +98,9 @@ Rules:
 - Covers: `lib/**`, data transforms, query builders, zod schemas, extracted server-action/route logic, `packages/*`.
 - MSW via `@repo/mocks/node` in `setup/unit.ts`:
   ```ts
-  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-  afterEach(() => server.resetHandlers())
-  afterAll(() => server.close())
+  beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+  afterEach(() => server.resetHandlers());
+  afterAll(() => server.close());
   ```
 - Per-test override: `server.use(...supabase.scenario.serverError('profiles'))`. Module-level `use` banned.
 
@@ -168,18 +168,18 @@ Supabase example: handlers mock `/auth/v1/user` and `/auth/v1/token`; cookie is 
 
 Recipe names use `-`, not `:`. `just` parses recipe names as identifiers, so `test:unit` is a syntax error.
 
-| Recipe          | Behaviour                                                                                          |
-| --------------- | -------------------------------------------------------------------------------------------------- |
+| Recipe          | Behaviour                                                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `test`          | layers 1+2, `--changed=$(git merge-base HEAD origin/$BASE_BRANCH)`; no upstream → `--changed`. `passWithNoTests: true` here only |
-| `test-unit`     | layer 1 full; fails on zero tests                                                                  |
-| `test-browser`  | layer 2 full; fails on zero tests                                                                  |
-| `test-e2e`      | layer 3; requires server up (`GET /__health` + app health), fails fast otherwise; stale `.next` accepted |
-| `test-all`      | wipe `test-results/`, `check`, layers 1+2 full, rebuild + restart server, layer 3                  |
-| `server`        | `process-compose up`: mock-server → `next build` → `next start`, readiness probes, long-lived      |
-| `server-status` | health checks, exit code                                                                           |
-| `check`         | oxlint, oxfmt `--check` (or prettier), `tsc --noEmit` (tests included), playwright version match, origin-literal grep |
-| `fmt`           | oxfmt (or prettier) write                                                                          |
-| `gen-types`     | regenerate `TYPES_SOURCE`; human, network, outside sandbox                                         |
+| `test-unit`     | layer 1 full; fails on zero tests                                                                                                |
+| `test-browser`  | layer 2 full; fails on zero tests                                                                                                |
+| `test-e2e`      | layer 3; requires server up (`GET /__health` + app health), fails fast otherwise; stale `.next` accepted                         |
+| `test-all`      | wipe `test-results/`, `check`, layers 1+2 full, rebuild + restart server, layer 3                                                |
+| `server`        | `process-compose up`: mock-server → `next build` → `next start`, readiness probes, long-lived                                    |
+| `server-status` | health checks, exit code                                                                                                         |
+| `check`         | oxlint, oxfmt `--check` (or prettier), `tsc --noEmit` (tests included), playwright version match, origin-literal grep            |
+| `fmt`           | oxfmt (or prettier) write                                                                                                        |
+| `gen-types`     | regenerate `TYPES_SOURCE`; human, network, outside sandbox                                                                       |
 
 Agent loop contract: per iteration `just check && just test`. At task completion `just test-all`. Agents never run `server` or `gen-types`; a human or orchestrator runs `just server` once per session.
 
@@ -205,13 +205,13 @@ Supervisor = `process-compose` from nixpkgs, declared in `process-compose.yaml`.
 
 ## Lint rules (oxlint, run by `check`)
 
-| Scope                                   | Rule                                                                                  |
-| --------------------------------------- | ------------------------------------------------------------------------------------- |
-| `**/*.test.*`, `**/*.browser.test.*`    | `no-restricted-imports`: anything under `APP_DIR`; `@playwright/test`; `@testing-library/*` (new files) |
-| `E2E_DIR/**`                            | `no-restricted-imports`: `vitest`, `vitest-browser-react`, `@testing-library/*`, `SRC_DIR/components/**` |
-| everywhere                              | `vi.mock` banned unless file has `// mock-allow: <reason>`                             |
-| `APP_DIR/**`                            | no files matching test globs                                                          |
-| `SRC_DIR/**` except `lib/*/client.ts`   | script: no `https?://` literals outside allowlist                                     |
+| Scope                                 | Rule                                                                                                     |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `**/*.test.*`, `**/*.browser.test.*`  | `no-restricted-imports`: anything under `APP_DIR`; `@playwright/test`; `@testing-library/*` (new files)  |
+| `E2E_DIR/**`                          | `no-restricted-imports`: `vitest`, `vitest-browser-react`, `@testing-library/*`, `SRC_DIR/components/**` |
+| everywhere                            | `vi.mock` banned unless file has `// mock-allow: <reason>`                                               |
+| `APP_DIR/**`                          | no files matching test globs                                                                             |
+| `SRC_DIR/**` except `lib/*/client.ts` | script: no `https?://` literals outside allowlist                                                        |
 
 ## Acceptance criteria
 

@@ -36,7 +36,11 @@ export function anonSession(): AuthFixture {
     handlers: [
       http.get(AUTH_USER, () =>
         HttpResponse.json(
-          { code: 401, error_code: "no_authorization", msg: "This endpoint requires a Bearer token" },
+          {
+            code: 401,
+            error_code: "no_authorization",
+            msg: "This endpoint requires a Bearer token",
+          },
           { status: 401 },
         ),
       ),

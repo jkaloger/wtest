@@ -2,6 +2,9 @@
   "name": "@repo/mocks",
   "version": "0.0.0",
   "private": true,
+  "bin": {
+    "mocks-server": "./bin/mocks-server.mjs"
+  },
   "type": "module",
   "exports": {
     ".": "./src/handlers/index.ts",
@@ -10,9 +13,6 @@
     "./server": "./src/server.ts",
     "./auth": "./src/auth/index.ts",
     "./supabase": "./src/handlers/supabase/index.ts"
-  },
-  "bin": {
-    "mocks-server": "./bin/mocks-server.mjs"
   },
   "scripts": {
     "test": "vitest run",

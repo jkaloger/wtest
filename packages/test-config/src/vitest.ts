@@ -20,8 +20,12 @@ export type ProjectOptions = {
 const BROWSER_TESTS = "**/*.browser.test.{ts,tsx}";
 const E2E_DIR = "e2e/**";
 
-export function unitProject({ root, include = [] }: ProjectOptions): TestProjectInlineConfiguration {
+export function unitProject({
+  root,
+  include = [],
+}: ProjectOptions): TestProjectInlineConfiguration {
   return {
+    extends: true,
     test: {
       name: "unit",
       root,
@@ -33,8 +37,12 @@ export function unitProject({ root, include = [] }: ProjectOptions): TestProject
   };
 }
 
-export function browserProject({ root, include = [] }: ProjectOptions): TestProjectInlineConfiguration {
+export function browserProject({
+  root,
+  include = [],
+}: ProjectOptions): TestProjectInlineConfiguration {
   return {
+    extends: true,
     test: {
       name: "browser",
       root,

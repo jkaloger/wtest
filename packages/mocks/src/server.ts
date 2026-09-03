@@ -1,7 +1,12 @@
 import express, { type Express } from "express";
 import { createMiddleware } from "@mswjs/http-middleware";
 import type { HttpHandler } from "msw";
-import { handlers as defaults, resolveScenario, scenarioNames, type ScenarioRequest } from "./handlers/index.ts";
+import {
+  handlers as defaults,
+  resolveScenario,
+  scenarioNames,
+  type ScenarioRequest,
+} from "./handlers/index.ts";
 
 export function createMockServer(base: HttpHandler[] = defaults): Express {
   let overrides: HttpHandler[] = [];
