@@ -1,4 +1,10 @@
-# dom-test
+<h1 align="center">
+  📸
+  <br>wtest
+</h1>
+<p align="center">
+   Vitest + Playwright harness for loopback only sandboxed agents
+</p>
 
 Proving ground for [`SPEC.md`](./SPEC.md): a three-layer test harness (Vitest node, Vitest browser
 mode, Playwright) fed by one set of MSW handlers, with zero network egress. Toy Next.js app
