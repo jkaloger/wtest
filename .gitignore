@@ -9,3 +9,5 @@ result
 *.log
 *.tsbuildinfo
 .process-compose.log
+.vitest-attachments/
+apps/web/public/mockServiceWorker.js

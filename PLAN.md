@@ -102,7 +102,7 @@ Depends: 3.
 - `src/components/profile-card/index.tsx` (pure, props), `src/components/profile-search/index.tsx` (client, fetches via `browserClient()` on input).
 - Routes: `/` static public; `/login` renders form → `signIn`; `/dashboard` RSC, authed, fetches profiles via `serverClient()`. `proxy.ts` redirects anon `/dashboard` → `/login`.
 - `next/font/local` only. `vitest.config.ts` + `playwright.config.ts` compose factories.
-- `pnpm exec msw init apps/web/public/` committed.
+- `public/mockServiceWorker.js` gitignored; `postinstall: msw init` in `apps/web` regenerates it (path from `msw.workerDirectory`).
 
 Verify: `direnv exec . pnpm -F web tsc --noEmit`; `direnv exec . just check`.
 
