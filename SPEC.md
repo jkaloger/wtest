@@ -84,6 +84,7 @@ packages/test-config/          @repo/test-config
   src/vitest.ts                unitProject(), browserProject()
   src/playwright.ts            playwrightConfig(), `authed` fixture, mainAlert(page)
   src/chromium.ts              single-process Chromium detection (macOS agent sandbox)
+  src/shot.ts                  `just shot` CLI: one live URL -> one PNG, no test run
   src/reporter.ts              vitest JsonReporter subclass adding screenshots[] per assertion
   src/setup/unit.ts  src/setup/browser.ts   (browser: MSW worker + SCREENSHOTS=all afterEach)
 packages/types/                @repo/types: committed generated backend types
@@ -191,6 +192,7 @@ Recipe names use `-`, not `:`. `just` parses recipe names as identifiers, so `te
 | `test-browser`   | layer 2 full; fails on zero tests                                                                                                                          |
 | `test-e2e`       | layer 3; requires server up (`GET /__health` + app health), fails fast otherwise; stale `.next` accepted                                                   |
 | `test-all`       | wipe `RESULTS_DIR`, `check`, layers 1+2 full, rebuild + restart server, layer 3, print durations, write gallery; `SCREENSHOTS` defaults to `all` here only |
+| `shot`           | `shot <url> [path]`: one full-page PNG of a live URL, no test run. Path defaults to `RESULTS_DIR/shots/<sanitised url>.png`. Requires the server up        |
 | `report`         | regenerate `RESULTS_DIR/index.html` from whatever reports exist, then open it (`open` / `xdg-open`); human recipe                                          |
 | `server`         | `process-compose up`: mock-server → `next build` → `next start` (+ `watchdog`), readiness probes; `-D` detaches                                            |
 | `server-restart` | `server-down`, `server -D`, `server-wait`; what `test-all` uses                                                                                            |
@@ -225,6 +227,7 @@ Supervisor = `process-compose` from nixpkgs, declared in `process-compose.yaml`.
 
 - `RESULTS_DIR/unit.json`, `RESULTS_DIR/browser.json` (vitest `--reporter=default --reporter=@repo/test-config/reporter --outputFile`), `RESULTS_DIR/e2e.json`. Wiped at the start of every `test*` recipe. The reporter subclasses vitest's `JsonReporter` because the stock one omits artefacts; it adds `screenshots[]` to each failed assertion.
 - Screenshots: `test-results/browser/<file>/<test>.png` (vitest scheme), `test-results/e2e/<spec>-<test>/…` (Playwright scheme). Paths appear in the JSON reports: `screenshots[]` per vitest assertion (failure artefacts, or the derived pass path when it exists), `attachments[]` per Playwright result. Failures always; every test when `SCREENSHOTS=all`.
+- Ad-hoc preview: `just shot <url> [path]` renders one live URL to a full-page PNG the agent can read back, no test run and no report entry. `packages/test-config/src/shot.ts` drives Playwright directly because the `playwright screenshot` CLI takes no browser args and the sandbox needs `--single-process`; it reuses `chromiumArgs()`, so the same detection covers it. Not part of any gate, not in the gallery.
 - Traces: `test-results/e2e/<spec>-<test>/trace.zip`, failures only. Open with `playwright show-trace <zip>` or the Playwright HTML report. Layer 2 has no traces: vitest's `browser.trace` leaves Playwright's raw trace scratch files in `tracesDir` for passing tests too.
 - Exit codes are the sole pass/fail signal. No prompts, no watch mode in agent-invoked recipes.
 - Timing targets are soft, measured on CI from report durations and printed by `test-all`: unit full < 5s, `--changed` < 1s, browser cold < 10s, warm single file < 3s, e2e < 60s. No timing gate fails a run.

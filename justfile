@@ -85,6 +85,16 @@ test-all:
     node scripts/report-durations.mjs
     node scripts/gallery.mjs
 
+# One page, one PNG, no test run. Path defaults to a URL-derived name under test-results/shots/.
+# Requires the server up (`just server -D`); `just test-all` wipes the directory.
+shot url path="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out={{path}}
+    if [ -z "$out" ]; then out={{results}}/shots/$(echo "{{url}}" | sed 's#^[a-z]*://##; s#[^A-Za-z0-9._-]#_#g').png; fi
+    mkdir -p "$(dirname "$out")"
+    node packages/test-config/src/shot.ts "{{url}}" "$out"
+
 # Human recipe: rebuild the gallery from whatever reports exist and open it.
 report:
     node scripts/gallery.mjs
